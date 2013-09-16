@@ -1,0 +1,721 @@
+#!/usr/bin/env python
+# encoding: utf8
+#
+# Seafile Administration Web-To-CLI-Wrapper
+# Copyright (C) 2013 Henri Wahl <h.wahl@ifw-dresden.de>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+
+USAGE = """
+seafadm [option...] [command] [argument]
+
+Valid options are:
+
+    -c, --config      location for config file for URL, username and password
+    -U, --url         URL of Seafile server, e.g. https://seafile.local
+    -u, --username    username of Seafile admin account
+    -p, --password    password for givern username
+    -F, --force       disable confirmation for delete and quota command
+
+Valid commands are:
+
+    show              show informations about users, libraries, groups and links
+    delete            delete users, libraries, groups and links
+    quota             set quota for single users and whole domains
+    search            search for users, groups and links
+
+Arguments for show command:
+
+    users             show all users, their ID, creation date and quota as list
+    user <username>   show extra details about <username>, its libraries, shares and groups
+    libs              show all libraries, their ID, owners and description as list
+    groups            show all groups, their ID, owner, creation date and members as list
+    group <group>     show details about single <group>
+    links             show links, their ID, creation date and URL as list ordered by owner
+    all               show extra details about all users
+
+Arguments for delete command:
+
+    user <username>   delete <username>
+    lib <reop-id>     delete library with ID <repo-id>
+    link <link>       delete link <link> identified by URL or ID
+    group <group>     delete group identified by group name <group>
+
+Arguments for quota command:
+
+    user <username> <quota>        set quota for <username> to <quota> MB
+    domain <domain> <quota>        set quota for users from <domain> to <quota> MB
+    domain not <domain> <quota>    set quota for users NOT from <domain> to <quota> MB
+    domain min <domain> <quota>    set quota for users from <domain> to a minimum of
+                                   <quota> MB
+
+Arguments for search command:
+
+    user <srtring>    search in users for <string>
+    group <string>    search in groups for <string>
+    link <string>     search in links for <string>
+
+EXAMPLES:
+
+Showing all users, their libraries, groups and memberships:
+
+    seafadm -c ./seafadm.conf show all
+
+Showing users as list:
+
+    seafadm -c ./seafadm.conf show users
+
+Showing details about one single user:
+
+    seafadm -c ./seafadm.conf show user joe@example.com
+
+Deleting an user:
+
+    seafadm -c ./seafadm.conf delete user joe@example.com
+
+Deleting a library:
+
+    seafadm -c ./seafadm.conf delete lib 1c17cddc-2864-407c-8fcf-6a325964d00b
+
+Setting quota to 10240 MB for an user:
+
+    seafadm -c ./seafadm.conf quota user joe@example.com 10240
+
+Setting quota to 4096 MB for users of domain example.com:
+
+    seafadm -c ./seafadm.conf quota domain example.com 4096
+
+Setting quota to a minimum of 20480 MB for all users of domain example.com:
+
+    seafadm -c ./seafadm.conf quota domain min example.com 20480
+
+Setting quota to 1 MB for all users NOT in domain example.com:
+
+    seafadm -c ./seafadm.conf quota domain not example.com 1
+"""
+
+import urllib
+import urllib2
+import cookielib
+import sys
+import getopt
+import os.path
+import ConfigParser
+
+
+# default config parameters
+CONFIG_FILE = SEAFILE_URL = SEAFILE_USERNAME = SEAFILE_PASSWORD = ""
+# items to be shown per page to avoid pagination - 100000 should be enough
+PER_PAGE = 100000
+# needed for quota calculation
+SIZE_UNITS = ["bytes", "kb", "mb", "gb", "tb"]
+# no forcing as default
+FORCE = False
+
+
+def ErrorExit(message="An error occured.", status=1):
+    """
+    exit with given error message
+    allow prefix, especially for spitting out section of configuration errors
+    """
+    print "\n", message, "\n"
+    sys.exit(status)
+
+
+try:
+    import bs4
+except:
+    ErrorExit("No BeautifulSoup module bs4 found. Please install BeautifulSoup 4")
+
+
+class User(object):
+    """
+    store information about a user
+    """
+    EMail = Creation = Quota = UsedSpace = Libs = Groups = Links = ID = Shares = None
+
+    def __init__(self, **kwds):
+        # fill properties with given values
+        for k in kwds: self.__dict__[k] = kwds[k]
+
+
+    def PrintInfo(self):
+        """
+        pretty prints user details
+        """
+        print "User:\t%s" % (self.EMail)
+        print "ID:\t%s" % (self.ID)
+        print "Quota:\t%s" % (("%s/%s MB" % (self.UsedSpace, self.Quota)))
+        print "Date:\t%s" % (self.Creation)
+        if len(self.Libs) > 0:
+            category = "Libs:"
+            for l in self.Libs:
+                print "%s\t%s" % (category, " | ".join((l.ID, l.Name)))
+                category = ""
+        if len(self.Groups) > 0:
+            category = "Groups:"
+            for g in self.Groups:
+                if g.Owner == self.EMail:
+                    print "%s\t%s %s" % (category, g.Name, "(Owner)")
+                else:
+                    print "%s\t%s" % (category, g.Name)
+                category = ""
+        if len(self.Links) > 0:
+            category = "Links:"
+            for l in self.Links:
+                print "%s\t%s" % (category, " | ".join((l.URL, l.Creation, l.Name)))
+                category = ""
+        if len(self.Shares) > 0:
+            category = "Shares:"
+            for s in self.Shares:
+                if s.Type == "user":
+                    print "%s\t%s by user %s" % (category, s.Name, s.Owner)
+                else:
+                    print "%s\t%s by group %s" % (category, s.Name, s.Group)
+                category = ""
+
+
+    def CollectInfo(self, libs={}, links={}, groups={}):
+        """
+        sort user information
+        """
+        self.Libs = list()
+        for l in libs.values():
+            if self.EMail == l.Owner:
+                self.Libs.append(l)
+        self.Libs.sort(cmp=lambda x,y: cmp(x.Name , y.Name))
+        self.Groups = list()
+        for g in groups.values():
+            if self.EMail in g.Members:
+                self.Groups.append(g)
+        self.Groups.sort(cmp=lambda x,y: cmp(x.Name , y.Name))
+        self.Links = list()
+        for l in links.values():
+            if self.EMail in l.Owner:
+                self.Links.append(l)
+        self.Links.sort(cmp=lambda x,y: cmp(x.Name , y.Name))
+        # get shares given for user
+        self.Shares = self.GetShares()
+        for g in self.Groups:
+            for s in g.GetShares(): self.Shares.append(s)
+        return True
+
+
+    def GetShares(self):
+        """
+        get shares a user gets from other users
+        """
+        shares = list()
+        for s in GetData("/useradmin/info/%s" % (self.EMail), section="Shared"):
+            share = Share(Name=s[1], Owner=s[2], Description=s[3], Type="user")
+            shares.append(share)
+        return shares
+
+
+class Library(object):
+    """
+    a single library
+    """
+    Name = ID = Owner = Description = None
+
+    def __init__(self, **kwds):
+        # fill properties with given values
+        for k in kwds: self.__dict__[k] = kwds[k]
+
+
+class Link(object):
+    """
+    publicily available link
+    """
+    Name = Owner = Creation = Count = Type = URL = ID = None
+
+    def __init__(self, **kwds):
+        # fill properties with given values
+        for k in kwds: self.__dict__[k] = kwds[k]
+
+    def PrintInfo(self):
+        """
+        pretty prints link details
+        """
+        print "Link:\t%s" % (self.Name)
+        print "ID:\t%s" % (self.ID)
+        print "Date:\t%s" % (self.Creation)
+        print "Owner:\t%s" % (self.Owner)
+        print "Type:\t%s" % (self.Type)
+        print "URL:\t%s" % (self.URL)
+
+
+class Group(object):
+    """
+    group and its members
+    """
+    Name = ID = Owner = Creation = Members = Description = None
+
+    def __init__(self, **kwds):
+        # fill properties with given values
+        for k in kwds: self.__dict__[k] = kwds[k]
+
+    def PrintInfo(self):
+        """
+        pretty prints group details
+        """
+        print "Group:\t%s" % (self.Name)
+        print "ID:\t%s" % (self.ID)
+        print "Date:\t%s" % (self.Creation)
+        print "Owner:\t%s" % (self.Owner)
+        if len(self.Members) > 0:
+            category = "Member:"
+            for l in self.Members:
+                print "%s\t%s" % (category, l)
+                category = ""
+
+
+    def GetShares(self):
+        """
+        get shares a group gets from users
+        """
+        shares = list()
+        for s in GetData("/group/%s" % (self.ID), section="grp-repos"):
+            share = Share(Name=s[1], Owner=s[2], Description=s[3], Type="group", Group=self.Name)
+            shares.append(share)
+        return shares
+
+
+class Share(object):
+    """
+    a single share
+    """
+    Name = Owner = Description = Type = Group = None
+
+    def __init__(self, **kwds):
+        # fill properties with given values
+        for k in kwds: self.__dict__[k] = kwds[k]
+
+
+def GetURL(url, cgi_data=None):
+    """
+    shortcut for URL request
+    """
+    request = urllib2.Request(url, cgi_data, HEADERS)
+    content = urllib2.urlopen(request)
+    return content
+
+
+def GetSoup(url, cgi_data=None):
+    """
+    get HTML content as BeautifulSoup object
+    """
+    content = GetURL(url, cgi_data)
+    soup = bs4.BeautifulSoup(unicode(content.read(), errors="ignore"))
+    return soup
+
+
+def GetData(data_url, mode="simple", section=""):
+    """
+    get data of given URL, e.g. users, needing desired section of page
+    """
+    rows = list()
+    table = None
+    # sub-url as data-url gets anti-pagination-oage-request added
+    soup = GetSoup(SEAFILE_URL + data_url + "?per_page=%s" % (PER_PAGE))
+    # sections are headed by h3 headers or li list items and thus identifyable
+    h3s = soup.find_all("h3")
+    for h3 in h3s:
+        if h3.string == section:
+            table = h3.find_next_sibling("table")
+            break
+    # some pages show information in tables inside of certain divs which should be named by id
+    if table == None:
+        div = soup.find(id=section)
+        if not div == None:
+            table = div.find_all("table")
+    if not table == None:
+        for tr in table:
+            # there are some empty passages in HTML which have no .find_all() method
+            if isinstance(tr, bs4.element.Tag):
+                columns = list()
+                for td in tr.find_all("td"):
+                    if td.string != None:
+                        if mode == "simple":
+                            data = td.string.replace("\n","").strip()
+                        elif mode == "verbose":
+                            string = td.string.replace("\n","").strip()
+                            soup = td
+                            data = [string, soup]
+                    else:
+                        data = td
+                    columns.append(data)
+                # only add colums that contains any data
+                if not len(columns) == 0: rows.append(columns)
+    return rows
+
+
+def GetUsers():
+    """
+    retrieve information about all users
+    """
+    users = dict()
+    for d in GetData("/sys/useradmin", section="All Members"):
+        used_space, quota =  d[2].split("/")
+        used_space = used_space.strip()
+        quota = quota.strip()
+        used_space, unit = used_space.split(" ")
+        # calculate space in megabytes
+        used_space = float(used_space)*1024**SIZE_UNITS.index(unit.lower())/1024**2
+        quota, unit = quota.split(" ")
+        # dito
+        quota = float(quota)*1024**SIZE_UNITS.index(unit.lower())/1024**2
+        user = User(EMail=str(d[0]), Creation=d[3], UsedSpace = used_space, Quota = quota)
+        if isinstance(d[4], bs4.element.Tag):
+            user.ID=d[4].a["data-url"].strip("/").split("/")[-1]
+        users[user.EMail] = (user)
+    return users
+
+
+def GetLibraries():
+    """
+    retrieve information about all libraries
+    """
+    libraries = dict()
+    for d in GetData("/sys/seafadmin", section="All Libraries"):
+        library = Library(Name=d[0], ID=d[1], Owner=d[2], Description=d[3])
+        libraries[library.ID]=library
+    return libraries
+
+
+def GetLinks():
+    """
+    get all publicly shared links
+    Name = Owner = Creation = Count = URL = None
+    """
+    links = dict()
+    for d in GetData("/sys/publinkadmin", section="All Public Links"):
+        link = Link(Name=d[0], Owner=d[1], Creation=d[2], Count=d[3])
+        if link.Name.startswith("/"):
+            link.Type = "directory"
+        else:
+            link.Type = "file"
+        if isinstance(d[4], bs4.element.Tag):
+            link.ID = d[4].a["href"].split("=")[-1]
+            link.URL = "/".join((SEAFILE_URL, link.Type[0], link.ID))
+        links[link.ID] = link
+    return links
+
+
+def GetGroups():
+    """
+    get groups and their members
+    """
+    groups = dict()
+    for d in GetData("/sys/groupadmin", mode="verbose", section="All Groups"):
+        group = Group(Name=d[0][0], Owner=d[1][0], Creation=d[2][0])
+        group.ID = d[0][1].a["href"].strip("/").split("/")[-1]
+        soup = GetSoup(SEAFILE_URL + "/group/" + group.ID + "/members")
+        group.Members = list()
+        for u in soup.find_all("ul", attrs={"class": "user-list"}):
+            for p in u.find_all("p"):
+                group.Members.append(p.string)
+            group.Members.sort()
+        groups[group.Name] = group
+    return groups
+
+
+def Confirm(question):
+    """
+    return true or false for confirmation of certain destructive tasks
+    """
+    if FORCE == True:
+        return True
+    elif raw_input(question + "? [y/n]: ").lower() in ["y", "yes"]:
+        return True
+    else:
+        return False
+
+
+# get configuration
+opts, args = getopt.gnu_getopt(sys.argv[1:], "c:u:p:U:Ff", ["config=", "username=", "password=", "url=", "force"])
+for opt, arg in opts:
+    if opt in ("-c", "--config"):
+        CONFIG_FILE = arg
+    if opt in ("-u", "--username"):
+        SEAFILE_USERNAME = arg
+    if opt in ("-p", "--password"):
+        SEAFILE_PASSWORD = arg
+    if opt in ("-U", "--url"):
+        SEAFILE_URL = arg
+    if opt in ("-F", "--force"):
+        FORCE = True
+
+if not CONFIG_FILE == "":
+    if os.path.exists(CONFIG_FILE):
+        if not (os.path.isfile(CONFIG_FILE) or \
+                    os.path.islink(CONFIG_FILE)):
+            ErrorExit("Configuration file %s is no file or link." % (CONFIG_FILE))
+    else:
+        ErrorExit("Configuration file %s does not exist." % (CONFIG_FILE))
+
+if not CONFIG_FILE == "":
+    # instantiate Configparser
+    config = ConfigParser.ConfigParser()
+    config.read(CONFIG_FILE)
+    if config.has_section("seafadm"):
+        if config.has_option("seafadm", "url") and SEAFILE_URL == "":
+            SEAFILE_URL = config.get("seafadm", "url")
+        if config.has_option("seafadm", "username") and SEAFILE_USERNAME == "":
+            SEAFILE_USERNAME = config.get("seafadm", "username")
+        if config.has_option("seafadm", "password") and SEAFILE_PASSWORD == "":
+            SEAFILE_PASSWORD = config.get("seafadm", "password")
+    else:
+        ErrorExit("Section [seafadm] is missing in config file %s." % CONFIG_FILE)
+
+# only continue if all needed parameters are configured
+if not ( SEAFILE_URL != "" and SEAFILE_USERNAME != "" and SEAFILE_PASSWORD != "" ) :
+    ErrorExit("Something is missing. Please provide URL, username and password of Seafile server.")
+
+# some non-urllib-header is needed, otherwise a 403 is the result
+HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": SEAFILE_URL}
+
+# cookie management
+cookies = cookielib.CookieJar()
+# add cookie management and disable proxy
+opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cookies), urllib2.ProxyHandler({}))
+urllib2.install_opener(opener)
+
+# get logged into Seafile webinterface
+soup = GetSoup(SEAFILE_URL + "/accounts/login/")
+csrfmiddlewaretoken = soup.find("input", attrs={"name": "csrfmiddlewaretoken"}).attrs["value"]
+
+# via POST submitted formular data
+cgi_data = urllib.urlencode([("username", SEAFILE_USERNAME), \
+                             ("password", SEAFILE_PASSWORD), \
+                             ("csrfmiddlewaretoken", csrfmiddlewaretoken), \
+                             ("next", "/"), \
+                             ("submit", "Submit")])
+
+# add X-CSRFToken to requests
+HEADERS.update({"X-CSRFToken": csrfmiddlewaretoken})
+
+# effectively login
+content = GetURL(SEAFILE_URL + "/accounts/login/", cgi_data)
+
+# check args for seafadm
+if len(args) > 0:
+    # when only 1 arg is given args is a tring no list?
+    if args[0].lower() in ["list", "show"]:
+         # show everything
+        if len(args) >= 2:
+            objects = args[1].lower()
+            if objects == "users":
+                users = GetUsers()
+                for u in sorted(users.values(), cmp=lambda x, y: cmp(x.EMail, y.EMail)):
+                    print "|".join((u.EMail, str(u.ID), u.Creation, "%s/%s MB" % (u.UsedSpace, u.Quota)))
+            elif objects in ["repos", "libs", "libraries"]:
+                libs = GetLibraries()
+                for l in sorted(libs.values(), cmp=lambda x,y: cmp((x.Owner, x.Name), (y.Owner, y.Name))):
+                    print "|".join((l.ID, l.Owner, l.Name, l.Description))
+            elif objects == "links":
+                links = GetLinks()
+                for l in sorted(links.values(), cmp=lambda x,y: cmp((x.Owner, x.Name) , (y.Owner, y.Name))):
+                    print "|".join((l.Owner,l.Creation, l.URL, l.Count, l.Name))
+            elif objects == "groups":
+                groups = GetGroups()
+                for g in sorted(groups.values(), cmp=lambda x,y: cmp(x.Name , y.Name)):
+                    print "|".join((g.Name, g.ID, g.Owner, g.Creation, " ".join((g.Members))))
+            elif objects =="user":
+                if len(args) >= 3:
+                    user = args[2]
+                    users = GetUsers()
+                    if not user in users.keys():
+                        ErrorExit("User %s does not exist." % (user))
+                    libs = GetLibraries()
+                    links = GetLinks()
+                    groups = GetGroups()
+                    users[user].CollectInfo(libs=libs, links=links, groups=groups)
+                    users[user].PrintInfo()
+                else:
+                    ErrorExit("User needed to display user info.")
+            elif objects =="group":
+                if len(args) >= 3:
+                    group = args[2]
+                    groups = GetGroups()
+                    if not group in groups:
+                        ErrorExit("Group %s does not exist." % (group))
+                    groups[group].PrintInfo()
+                else:
+                    ErrorExit("Group needed to display group info.")
+            elif objects == "all":
+                users = GetUsers()
+                libs = GetLibraries()
+                links = GetLinks()
+                groups = GetGroups()
+                for u in sorted(users.values(), cmp=lambda x, y: cmp(x.EMail, y.EMail)):
+                    u.CollectInfo(libs=libs, links=links, groups=groups)
+                    u.PrintInfo()
+                    print
+        else:
+            ErrorExit(USAGE)
+
+    elif args[0].lower() == "delete":
+        # user, group, link or repo
+        if len(args) >= 3:
+            if args[1].lower() in ["user", "library", "lib", "repo", "link", "group"]:
+                objects = args[1].lower()
+                if objects == "user":
+                    user = args[2]
+                    users = GetUsers()
+                    if user in users:
+                        if Confirm("Delete user %s" % (user)):
+                            user = users[user]
+                            GetURL("%s/useradmin/remove/%s/" % (SEAFILE_URL, user.ID))
+                            print "User %s deleted." % (user.EMail)
+                    else:
+                        ErrorExit("User %s does not exist." % (user))
+                elif objects in ["library", "lib", "repo"]:
+                    lib = args[2]
+                    libs = GetLibraries()
+                    if lib in libs:
+                        if Confirm("Delete library %s" % (lib)):
+                            GetURL("%s/repo/remove/%s/" % (SEAFILE_URL, lib))
+                            print "Library %s deleted." % (lib)
+                    else:
+                         ErrorExit("Library %s does not exist." % (lib))
+                elif objects == "link":
+                    link = args[2]
+                    links = GetLinks()
+                    if link.startswith("http"):
+                        # reduce to ID
+                        link = link.split("/")[-1]
+                    if link in links:
+                        if Confirm("Delete link %s" % (link)):
+                            GetURL("%s/share/link/remove/?t=%s" % (SEAFILE_URL, link))
+                            print "Link %s deleted." % (link)
+                    else:
+                        ErrorExit("Link %s does not exist." % (link))
+                elif objects == "group":
+                    group = args[2]
+                    groups = GetGroups()
+                    if group in groups:
+                        if Confirm("Delete group %s" % (group)):
+                            GetURL("%s/group/%s/remove" % (SEAFILE_URL, groups[group].ID))
+                            print "Group %s deleted." % (group)
+                    else:
+                        ErrorExit("Group %s does not exist." % (group))
+            else:
+                ErrorExit(USAGE)
+        else:
+            ErrorExit(USAGE)
+
+    elif args[0].lower() == "quota":
+        # domain or user
+        if len(args) >= 4:
+            if args[1].lower() in ["user", "domain"]:
+                objects = args[1].lower()
+                if objects == "user":
+                    user = args[2]
+                    users = GetUsers()
+                    if user in users:
+                        quota = args[3]
+                        if Confirm("Set quota for user %s to %s MB" % (user, quota)):
+                            user = users[user]
+                            # check validity of given size
+                            try: int(quota)
+                            except: ErrorExit("%s is no valid quota size." % (quota))
+                            cgi_data = urllib.urlencode({"email": user.EMail, "quota": quota})
+                            #GetURL("%s/useradmin/info/%s/" % (SEAFILE_URL, user.EMail), cgi_data)
+                            print "Set quota for %s to %s MB." %(user.EMail, quota)
+                    else:
+                        ErrorExit("User %s does not exist." % (user))
+                elif objects == "domain":
+                    mode = "normal"
+                    if args[2].lower() == "not" and len(args) >= 5:
+                        domains = args[3:-1]
+                        mode = "reverse"
+                    elif args[2].lower() == "min" and len(args) >= 5:
+                        domains = args[3:-1]
+                        mode = "min"
+                    else:
+                        domains = args[2:-1]
+                    quota = args[-1]
+                    # check validity of given size
+                    try: int(quota)
+                    except: ErrorExit("%s is no valid quota size." % (quota))
+                    users = GetUsers()
+                    users_mod = list()
+                    for user in users.values():
+                        if mode == "normal":
+                            if user.EMail.split("@")[1] in domains:
+                                users_mod.append(user)
+                        elif mode == "min":
+                            if user.EMail.split("@")[1] in domains and int(quota) > int(user.Quota):
+                                users_mod.append(user)
+                        else:
+                            if not user.EMail.split("@")[1] in domains:
+                                users_mod.append(user)
+                    if len(users_mod) > 0:
+                        question = {"normal": "Set quota for all users from %s to %s MB" % (", ".join(domains), quota),\
+                                    "min": "Set quota for all users from %s to MINIMAL %s MB" % (", ".join(domains), quota),\
+                                    "reverse": "Set quota for all users NOT from %s to %s MB" % (", ".join(domains), quota)}
+                        if Confirm(question[mode]):
+                            for user in users_mod:
+                                cgi_data = urllib.urlencode({"email": user.EMail, "quota": quota})
+                                GetURL("%s/useradmin/info/%s/" % (SEAFILE_URL, user.EMail), cgi_data)
+                                print "Set quota for %s to %s MB." %(user.EMail, quota)
+        else:
+            ErrorExit(USAGE)
+
+    elif args[0].lower() == "search":
+        # search user, link or group
+        if len(args) >= 3:
+            if args[1].lower() in ["user", "group", "link"]:
+                search = args[2].lower()
+                if args[1].lower() == "user":
+                    users = GetUsers()
+                    links = GetLinks()
+                    groups = GetGroups()
+                    libs = GetLibraries()
+                    for user in users.values():
+                        if search in user.EMail.lower():
+                            user.CollectInfo(libs=libs, links=links, groups=groups)
+                            user.PrintInfo()
+                            print
+                elif args[1].lower() == "group":
+                    groups = GetGroups()
+                    for group in groups.values():
+                        if search in group.Name.lower():
+                            group.PrintInfo()
+                            print
+                elif args[1].lower() == "link":
+                    links = GetLinks()
+                    for link in links.values():
+                        if search in link.Name.lower() or\
+                           search in link.URL:
+                            link.PrintInfo()
+                            print
+            else:
+                ErrorExit(USAGE)
+        else:
+            ErrorExit(USAGE)
+    elif args[0].lower() == "check":
+        # link and user
+        if len(args) >= 3:
+            if args[1].lower() in ["link", "links"]:
+                objects = args[1].lower()
+        else:
+            ErrorExit(USAGE)
+else:
+    print "\n%s\n" % (USAGE)
+
+# log out finally to keep number of open sessions small
+content = GetURL(SEAFILE_URL + "/accounts/logout/")
