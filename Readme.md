@@ -1,4 +1,4 @@
-seafadm - Seafile Administration Web-To-CLI-Wrapper
+seafadm - Seafile CLI Administration
 ===================================================
 
 ABOUT:
