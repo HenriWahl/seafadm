@@ -224,7 +224,7 @@ class User(object):
         if len(self.Links) > 0:
             print "Links:\n------"
             for l in self.Links:
-                print "%s" % (" ".join((l.URL, l.Name)))
+                print l.URL, l.Name
             print
             print "Manage your links at %s/share/links\n" % (SEAFILE_URL)
         if len(self.Shares) > 0:
@@ -269,7 +269,7 @@ class User(object):
         get shares a user gets from other users
         """
         shares = list()
-        for s in GetData("/useradmin/info/%s" % (self.EMail), section="Shared"):
+        for s in GetData("/useradmin/info/%s/" % (self.EMail), section="Shared"):
             share = Share(Name=s[1], Owner=s[2], Description=s[3], Type="user")
             shares.append(share)
         return shares
@@ -290,7 +290,7 @@ class Link(object):
     """
     publicily available link
     """
-    Name = Owner = Creation = Count = Type = URL = ID = None
+    Name = Owner = Creation = Count = Type = URL = ID = Validity = None
 
     def __init__(self, **kwds):
         # fill properties with given values
@@ -306,6 +306,26 @@ class Link(object):
         print "Owner:\t%s" % (self.Owner)
         print "Type:\t%s" % (self.Type)
         print "URL:\t%s" % (self.URL)
+
+
+    def IsValid(self):
+        """
+        check validity of URL
+        """
+        self.Validity = True
+        try:
+            # add "/" to avoid HTTP status codes 301 and thus double number of requests
+            if not self.URL.endswith("/"):
+                self.URL += "/"
+            content = GetURL(self.URL)
+            soup = bs4.BeautifulSoup(unicode(content.read(), errors="ignore"))
+            for e in soup.find_all(attrs={"class":"error"}):
+                if e.string == "File does not exist":
+                    self.Validity = False
+        except urllib2.HTTPError as e:
+            if e.reason == "NOT FOUND":
+                self.Validity = False
+        return self.Validity
 
 
 class Group(object):
@@ -338,7 +358,7 @@ class Group(object):
         get shares a group gets from users
         """
         shares = list()
-        for s in GetData("/group/%s" % (self.ID), section="grp-repos"):
+        for s in GetData("/group/%s/" % (self.ID), section="grp-repos"):
             share = Share(Name=s[1], Owner=s[2], Description=s[3], Type="group", Group=self.Name)
             shares.append(share)
         return shares
@@ -418,7 +438,7 @@ def GetUsers():
     retrieve information about all users
     """
     users = dict()
-    for d in GetData("/sys/useradmin", section="All Members"):
+    for d in GetData("/sys/useradmin/", section="All Members"):
         used_space, quota =  d[2].split("/")
         used_space = used_space.strip()
         quota = quota.strip()
@@ -440,7 +460,7 @@ def GetLibraries():
     retrieve information about all libraries
     """
     libraries = dict()
-    for d in GetData("/sys/seafadmin", section="All Libraries"):
+    for d in GetData("/sys/seafadmin/", section="All Libraries"):
         library = Library(Name=d[0], ID=d[1], Owner=d[2], Description=d[3])
         libraries[library.ID]=library
     return libraries
@@ -452,7 +472,7 @@ def GetLinks():
     Name = Owner = Creation = Count = URL = None
     """
     links = dict()
-    for d in GetData("/sys/publinkadmin", section="All Public Links"):
+    for d in GetData("/sys/publinkadmin/", section="All Public Links"):
         link = Link(Name=d[0], Owner=d[1], Creation=d[2], Count=d[3])
         if link.Name.startswith("/"):
             link.Type = "directory"
@@ -470,10 +490,10 @@ def GetGroups():
     get groups and their members
     """
     groups = dict()
-    for d in GetData("/sys/groupadmin", mode="verbose", section="All Groups"):
+    for d in GetData("/sys/groupadmin/", mode="verbose", section="All Groups"):
         group = Group(Name=d[0][0], Owner=d[1][0], Creation=d[2][0])
         group.ID = d[0][1].a["href"].strip("/").split("/")[-1]
-        soup = GetSoup(SEAFILE_URL + "/group/" + group.ID + "/members")
+        soup = GetSoup(SEAFILE_URL + "/group/" + group.ID + "/members/")
         group.Members = list()
         for u in soup.find_all("ul", attrs={"class": "user-list"}):
             for p in u.find_all("p"):
@@ -559,7 +579,7 @@ cgi_data = urllib.urlencode([("username", SEAFILE_USERNAME), \
 HEADERS.update({"X-CSRFToken": csrfmiddlewaretoken})
 
 # effectively login
-content = GetURL(SEAFILE_URL + "/accounts/login/", cgi_data)
+GetURL(SEAFILE_URL + "/accounts/login/", cgi_data)
 
 # check args for seafadm
 if len(args) > 0:
@@ -686,7 +706,6 @@ if len(args) > 0:
                             try: int(quota)
                             except: ErrorExit("%s is no valid quota size." % (quota))
                             cgi_data = urllib.urlencode({"email": user.EMail, "quota": quota})
-                            #GetURL("%s/useradmin/info/%s/" % (SEAFILE_URL, user.EMail), cgi_data)
                             print "Set quota for %s to %s MB." %(user.EMail, quota)
                     else:
                         ErrorExit("User %s does not exist." % (user))
@@ -765,9 +784,22 @@ if len(args) > 0:
 
     elif args[0].lower() == "check":
         # link and user
-        if len(args) >= 3:
+        if len(args) >= 2:
             if args[1].lower() in ["link", "links"]:
                 objects = args[1].lower()
+                if objects == "link" and len(args)>=2:
+                    pass
+
+                if objects == "links":
+                    invalid_links = list()
+                    links = GetLinks()
+                    for l in links.values():
+                        if not l.IsValid():
+                            invalid_links.append(l)
+                    for i in invalid_links:
+                        print i.URL, i.Name
+            else:
+                ErrorExit(USAGE)
         else:
             ErrorExit(USAGE)
 
@@ -790,4 +822,4 @@ else:
     print "\n%s\n" % (USAGE)
 
 # log out finally to keep number of open sessions small
-content = GetURL(SEAFILE_URL + "/accounts/logout/")
+GetURL(SEAFILE_URL + "/accounts/logout/")
