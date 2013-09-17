@@ -40,6 +40,7 @@ Valid commands are:
     delete            delete users, libraries, groups and links
     quota             set quota for single users and whole domains
     search            search for users, groups and links
+    report            generate report per user to be sent by mail
 
 Arguments for show command:
 
@@ -71,6 +72,10 @@ Arguments for search command:
     user <srtring>    search in users for <string>
     group <string>    search in groups for <string>
     link <string>     search in links for <string>
+
+Arguments for report command:
+
+    user <username>   generate report for user <username>, to be sent by mail for example
 
 CONFIG FILE:
 ------------
@@ -120,3 +125,11 @@ Setting quota to a minimum of 20480 MB for all users of domain example.com:
 Setting quota to 1 MB for all users NOT in domain example.com:
 
     seafadm -c ./seafadm.conf quota domain not example.com 1
+
+Search for user joe in users:
+
+    seafadm -c ./seafadm.conf search user joe
+
+Generate report for user joe@example.com
+
+    seafadm -c ./seafadm.conf report user joe@example.com

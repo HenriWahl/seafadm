@@ -35,6 +35,7 @@ Valid commands are:
     delete            delete users, libraries, groups and links
     quota             set quota for single users and whole domains
     search            search for users, groups and links
+    report            generate report per user to be sent by mail
 
 Arguments for show command:
 
@@ -66,6 +67,10 @@ Arguments for search command:
     user <srtring>    search in users for <string>
     group <string>    search in groups for <string>
     link <string>     search in links for <string>
+
+Arguments for report command:
+
+    user <username>   generate report for user <username>, to be sent by mail for example
 
 EXAMPLES:
 
@@ -104,6 +109,14 @@ Setting quota to a minimum of 20480 MB for all users of domain example.com:
 Setting quota to 1 MB for all users NOT in domain example.com:
 
     seafadm -c ./seafadm.conf quota domain not example.com 1
+
+Search for user joe in users:
+
+    seafadm -c ./seafadm.conf search user joe
+
+Generate report for user joe@example.com
+
+    seafadm -c ./seafadm.conf report user joe@example.com
 """
 
 import urllib
@@ -185,6 +198,44 @@ class User(object):
                 else:
                     print "%s\t%s by group %s" % (category, s.Name, s.Group)
                 category = ""
+
+
+    def PrintReport(self):
+        """
+        pretty prints user details
+        """
+        print "Seafile report for %s" % (self.EMail)
+        print "=" * len("Seafile report for %s" % (self.EMail)), "\n"
+        print "Registered since:\n%s\n" % (self.Creation)
+        print "Used space:\n-----------\n%s" % (("%s MB of %s MB\n" % (self.UsedSpace, self.Quota)))
+        if len(self.Libs) > 0:
+            print "Libraries:\n----------"
+            for l in self.Libs:
+                print l.Name
+            print
+        if len(self.Groups) > 0:
+            print "Groups:\n-------"
+            for g in self.Groups:
+                if g.Owner == self.EMail:
+                    print "%s %s" % (g.Name, "(Owner)")
+                else:
+                    print "%s" % (g.Name)
+            print
+        if len(self.Links) > 0:
+            print "Links:\n------"
+            for l in self.Links:
+                print "%s" % (" ".join((l.URL, l.Name)))
+            print
+            print "Manage your links at %s/share/links\n" % (SEAFILE_URL)
+        if len(self.Shares) > 0:
+            print "Shares:\n-------"
+            for s in self.Shares:
+                if s.Type == "user":
+                    print "%s by user %s" % (s.Name, s.Owner)
+                else:
+                    print "%s by group %s" % (s.Name, s.Group)
+            print
+            print "Manage your shares at %s/share\n" % (SEAFILE_URL)
 
 
     def CollectInfo(self, libs={}, links={}, groups={}):
@@ -711,11 +762,28 @@ if len(args) > 0:
                 ErrorExit(USAGE)
         else:
             ErrorExit(USAGE)
+
     elif args[0].lower() == "check":
         # link and user
         if len(args) >= 3:
             if args[1].lower() in ["link", "links"]:
                 objects = args[1].lower()
+        else:
+            ErrorExit(USAGE)
+
+    elif args[0].lower() == "report":
+        # link and user
+        if len(args) >= 3:
+            if args[1].lower() in ["user"]:
+                user = args[2]
+                users = GetUsers()
+                if not user in users:
+                    ErrorExit("User %s does not exist." % (user))
+                libs = GetLibraries()
+                links = GetLinks()
+                groups = GetGroups()
+                users[user].CollectInfo(libs=libs, links=links, groups=groups)
+                users[user].PrintReport()
         else:
             ErrorExit(USAGE)
 else:
