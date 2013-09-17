@@ -564,6 +564,8 @@ if len(args) > 0:
                     u.CollectInfo(libs=libs, links=links, groups=groups)
                     u.PrintInfo()
                     print
+            else:
+                ErrorExit(USAGE)
         else:
             ErrorExit(USAGE)
 
@@ -672,6 +674,8 @@ if len(args) > 0:
                                 cgi_data = urllib.urlencode({"email": user.EMail, "quota": quota})
                                 GetURL("%s/useradmin/info/%s/" % (SEAFILE_URL, user.EMail), cgi_data)
                                 print "Set quota for %s to %s MB." %(user.EMail, quota)
+            else:
+                ErrorExit(USAGE)
         else:
             ErrorExit(USAGE)
 
