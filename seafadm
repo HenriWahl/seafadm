@@ -432,7 +432,7 @@ def GetData(data_url, mode="simple", section=""):
     if table == None:
         div = soup.find(id=section)
         if not div == None:
-            table = div.find_all("table")
+            table = div.find_all("table")[0]
     if not table == None:
         for tr in table:
             # there are some empty passages in HTML which have no .find_all() method
