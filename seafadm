@@ -824,10 +824,10 @@ if len(args) > 0:
                             invalid_links.append(l)
                         else:
                             valid_links.append(l)
-                    for i in valid_links:
-                        print "|".join(("VALID", i.URL, i.Name))
-                    for i in invalid_links:
-                        print "|".join(("INVALID", i.URL, i.Name))
+                    for v in sorted(valid_links, cmp=lambda x,y: cmp((x.Owner, x.Name), (y.Owner, y.Name))):
+                        print "|".join(("VALID", v.URL, v.Owner, v.Name))
+                    for i in sorted(invalid_links, cmp=lambda x,y: cmp((x.Owner, x.Name), (y.Owner, y.Name))):
+                        print "|".join(("INVALID", i.URL, i.Owner, i.Name))
             else:
                 ErrorExit(USAGE)
         else:
@@ -845,7 +845,7 @@ if len(args) > 0:
                         if not l.IsValid():
                             invalid_links.append(l)
                     for i in invalid_links:
-                        print "Deleting invalid link %s %s." % (i.URL, i.Name)
+                        print "Deleting invalid link %s|%s|%s." % (i.URL, i.Owner, i.Name)
                         GetURL("%s/share/link/remove/?t=%s" % (SEAFILE_URL, i.ID))
             else:
                 ErrorExit(USAGE)
