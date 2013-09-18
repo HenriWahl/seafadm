@@ -148,7 +148,7 @@ import ConfigParser
 
 
 # default config parameters
-CONFIG_FILE = SEAFILE_URL = SEAFILE_USERNAME = SEAFILE_PASSWORD = ""
+CONFIG_FILE = SEAFILE_URL = SEAFILE_USERNAME = SEAFILE_PASSWORD = SEAFILE_ADMIN = ""
 # items to be shown per page to avoid pagination - 100000 should be enough
 PER_PAGE = 100000
 # needed for quota calculation
@@ -255,6 +255,8 @@ class User(object):
                     print "%s by group %s" % (s.Name, s.Group)
             print
             print "Manage your shares at %s/share\n" % (SEAFILE_URL)
+        if SEAFILE_ADMIN != "":
+            print "If you want to delete your Seafile account at %s please contact %s.\n" % (SEAFILE_URL, SEAFILE_ADMIN)
 
 
     def CollectInfo(self, libs={}, links={}, groups={}):
@@ -535,8 +537,10 @@ def Confirm(question):
 
 
 # get configuration
-opts, args = getopt.gnu_getopt(sys.argv[1:], "c:u:p:U:Ff", ["config=", "username=", "password=", "url=", "force"])
+opts, args = getopt.gnu_getopt(sys.argv[1:], "a:c:u:p:U:Ff", ["admin=", "config=", "username=", "password=", "url=", "force"])
 for opt, arg in opts:
+    if opt in ("-a", "--admin"):
+        SEAFILE_ADMIN = arg
     if opt in ("-c", "--config"):
         CONFIG_FILE = arg
     if opt in ("-u", "--username"):
@@ -567,6 +571,8 @@ if not CONFIG_FILE == "":
             SEAFILE_USERNAME = config.get("seafadm", "username")
         if config.has_option("seafadm", "password") and SEAFILE_PASSWORD == "":
             SEAFILE_PASSWORD = config.get("seafadm", "password")
+        if config.has_option("seafadm", "admin") and SEAFILE_ADMIN == "":
+            SEAFILE_ADMIN = config.get("seafadm", "admin")
     else:
         ErrorExit("Section [seafadm] is missing in config file %s." % CONFIG_FILE)
 
