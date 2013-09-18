@@ -232,6 +232,7 @@ class User(object):
             for l in self.Libs:
                 print l.Name
             print
+            print "Manage your libraries at %s/home/my/\n" % (SEAFILE_URL)
         if len(self.Groups) > 0:
             print "Groups:\n-------"
             for g in self.Groups:
@@ -240,21 +241,22 @@ class User(object):
                 else:
                     print "%s" % (g.Name)
             print
+            print "Manage your groups at %s/groups/\n" % (SEAFILE_URL)
         if len(self.Links) > 0:
-            print "Links:\n------"
+            print "Links you share:\n----------------"
             for l in self.Links:
                 print l.URL, l.Name
             print
-            print "Manage your links at %s/share/links\n" % (SEAFILE_URL)
+            print "Manage your links at %s/share/links/\n" % (SEAFILE_URL)
         if len(self.Shares) > 0:
-            print "Shares:\n-------"
+            print "Libraries shared with you:\n--------------------------"
             for s in self.Shares:
                 if s.Type == "user":
                     print "%s by user %s" % (s.Name, s.Owner)
                 else:
                     print "%s by group %s" % (s.Name, s.Group)
             print
-            print "Manage your shares at %s/share\n" % (SEAFILE_URL)
+            print "Manage your shares at %s/share/\n" % (SEAFILE_URL)
         if SEAFILE_ADMIN != "":
             print "If you want to delete your Seafile account at %s please contact %s.\n" % (SEAFILE_URL, SEAFILE_ADMIN)
 
