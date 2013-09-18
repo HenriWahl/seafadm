@@ -5,7 +5,7 @@ ABOUT:
 ------
 
 Seafadm allows to do some administration tasks for Seafile (https://github.com/haiwen/seafile) from command line. It collects informations and executes commands by internally calling the web interface of Seafile, Seahub. The used BeautifulSoup module allows the command line tool to be seen as a browser from Seahub's perspective.
-Using seafadm one can collect informations about users, groups, links and libraries. These objects also can be deleted. Quotas can be set for users and domains. Searches can be done in users, libraries and groups.
+Using seafadm one can collect informations about users, groups, links and libraries. These objects also can be deleted. Quotas can be set for users and domains. Searches can be done in users, libraries and groups. Reports can be generated to be sent to users by mail.
 
 REQUIREMENTS:
 -------------
@@ -25,7 +25,6 @@ USAGE:
 
 seafadm [option...] [command] [argument]
 
-
 Valid options are:
 
     -c, --config      location for config file for URL, username and password
@@ -41,6 +40,8 @@ Valid commands are:
     quota             set quota for single users and whole domains
     search            search for users, groups and links
     report            generate report per user to be sent by mail
+    check             check for invalid links
+    clean             check for invalid links and delete them
 
 Arguments for show command:
 
@@ -76,6 +77,14 @@ Arguments for search command:
 Arguments for report command:
 
     user <username>   generate report for user <username>, to be sent by mail for example
+
+Arguments for check command:
+
+    links             check validity of links and display them ordered by validity
+
+Arguments for clean command:
+
+    links             check validity of links and delete them if invalid
 
 CONFIG FILE:
 ------------
@@ -133,3 +142,11 @@ Search for user joe in users:
 Generate report for user joe@example.com
 
     seafadm -c ./seafadm.conf report user joe@example.com
+
+Check validity of links
+
+    seafadm -c ./seafadm.conf check links
+
+Delete invalid links
+
+    seafadm -c ./seafadm.conf clean links
