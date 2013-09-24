@@ -221,44 +221,44 @@ class User(object):
 
     def PrintReport(self):
         """
-        pretty prints user details
+        pretty prints user details in HTML
         """
-        print "Seafile report for %s" % (self.EMail)
-        print "=" * len("Seafile report for %s" % (self.EMail)), "\n"
-        print "Registered since:\n%s\n" % (self.Creation)
-        print "Used space:\n-----------\n%s" % (("%s MB of %s MB\n" % (self.UsedSpace, self.Quota)))
+        print "<html><head></head><body>"
+        print "<h2>Seafile report for %s</h2>" % (self.EMail)
+        #print "=" * len("Seafile report for %s" % (self.EMail)), "\n"
+        print "<p>Registered since: %s</p>" % (self.Creation)
+        print "<p>Used space: %s</p>" % (("%s MB of %s MB\n" % (self.UsedSpace, self.Quota)))
         if len(self.Libs) > 0:
-            print "Libraries:\n----------"
+            print "<h3>Libraries:</h3>"
             for l in self.Libs:
-                print l.Name
-            print
-            print "Manage your libraries at %s/home/my/\n" % (SEAFILE_URL)
+                print "%s<br>" % (l.Name)
+            print "<p>Manage your libraries at <a href=%s/home/my/>%s/home/my/</a></p>" % (SEAFILE_URL, SEAFILE_URL)
         if len(self.Groups) > 0:
-            print "Groups:\n-------"
+            print "<h3>Groups:</h3>"
             for g in self.Groups:
                 if g.Owner == self.EMail:
-                    print "%s %s" % (g.Name, "(Owner)")
+                    print "%s %s<br>" % (g.Name, "(Owner)")
                 else:
-                    print "%s" % (g.Name)
-            print
-            print "Manage your groups at %s/groups/\n" % (SEAFILE_URL)
+                    print "%s<br>" % (g.Name)
+            print "<p>Manage your groups at <a href=%s/groups/>%s/groups/</a></p>" % (SEAFILE_URL, SEAFILE_URL)
         if len(self.Links) > 0:
-            print "Links you share:\n----------------"
+            print "<h3>Links you share:</h3>"
             for l in self.Links:
-                print l.URL, l.Name
+                print "<a href=%s>%s</a> %s<br>" %(l.URL, l.URL, l.Name)
             print
-            print "Manage your links at %s/share/links/\n" % (SEAFILE_URL)
+            print "<p>Manage your links at <a href=%s/share/links/>%s/share/links/</a></p>" % (SEAFILE_URL, SEAFILE_URL)
         if len(self.Shares) > 0:
-            print "Libraries shared with you:\n--------------------------"
+            print "<h3>Libraries shared with you:</h3>"
             for s in self.Shares:
                 if s.Type == "user":
-                    print "%s by user %s" % (s.Name, s.Owner)
+                    print "%s by user %s<br>" % (s.Name, s.Owner)
                 else:
-                    print "%s by group %s" % (s.Name, s.Group)
+                    print "%s by group %s<br>" % (s.Name, s.Group)
             print
-            print "Manage your shares at %s/share/\n" % (SEAFILE_URL)
+            print "<p>Manage your shares at <a href=%s/share/>%s/share/</a></p>" % (SEAFILE_URL, SEAFILE_URL)
         if SEAFILE_ADMIN != "":
-            print "If you want to delete your Seafile account at %s please contact %s.\n" % (SEAFILE_URL, SEAFILE_ADMIN)
+            print "<p>If you want to delete your Seafile account at %s please contact <a href=mailto:%s>%s</a>.</p>" % (SEAFILE_URL, SEAFILE_ADMIN, SEAFILE_ADMIN)
+        print "</body></html>"
 
 
     def CollectInfo(self, libs={}, links={}, groups={}):
