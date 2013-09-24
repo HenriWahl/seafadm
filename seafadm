@@ -346,8 +346,12 @@ class Link(object):
                 if e.string == "File does not exist":
                     self.Validity = False
         except urllib2.HTTPError as e:
-            if e.reason == "NOT FOUND":
-                self.Validity = False
+            # sometimes HTTP error seems not to have a .reason
+            try:
+                if e.reason == "NOT FOUND":
+                    self.Validity = False
+            except:
+                print e
         return self.Validity
 
 
