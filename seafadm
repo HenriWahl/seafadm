@@ -345,13 +345,8 @@ class Link(object):
             for e in soup.find_all(attrs={"class":"error"}):
                 if e.string == "File does not exist":
                     self.Validity = False
-        except urllib2.HTTPError as e:
-            # sometimes HTTP error seems not to have a .reason
-            try:
-                if e.reason == "NOT FOUND":
-                    self.Validity = False
-            except:
-                print e
+        except urllib2.HTTPError:
+            self.Validity = False
         return self.Validity
 
 
@@ -438,7 +433,10 @@ def GetData(data_url, mode="simple", section=""):
     if table == None:
         div = soup.find(id=section)
         if not div == None:
-            table = div.find_all("table")[0]
+            try:
+                table = div.find_all("table")[0]
+            except:
+                print table
     if not table == None:
         for tr in table:
             # there are some empty passages in HTML which have no .find_all() method
