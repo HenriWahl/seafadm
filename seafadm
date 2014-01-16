@@ -463,7 +463,7 @@ def GetUsers():
     retrieve information about all users
     """
     users = dict()
-    for d in GetData("/sys/useradmin/", section="All Members"):
+    for d in GetData("/sys/useradmin/", section="main-panel"):
         used_space, quota =  d[2].split("/")
         used_space = used_space.strip()
         quota = quota.strip()
@@ -485,7 +485,7 @@ def GetLibraries():
     retrieve information about all libraries
     """
     libraries = dict()
-    for d in GetData("/sys/seafadmin/", section="All Libraries"):
+    for d in GetData("/sys/seafadmin/", section="main-panel"):
         library = Library(Name=d[0], ID=d[1], Owner=d[2], Description=d[3])
         libraries[library.ID]=library
     return libraries
@@ -541,20 +541,24 @@ def Confirm(question):
 
 
 # get configuration
-opts, args = getopt.gnu_getopt(sys.argv[1:], "a:c:u:p:U:Ff", ["admin=", "config=", "username=", "password=", "url=", "force"])
-for opt, arg in opts:
-    if opt in ("-a", "--admin"):
-        SEAFILE_ADMIN = arg
-    if opt in ("-c", "--config"):
-        CONFIG_FILE = arg
-    if opt in ("-u", "--username"):
-        SEAFILE_USERNAME = arg
-    if opt in ("-p", "--password"):
-        SEAFILE_PASSWORD = arg
-    if opt in ("-U", "--url"):
-        SEAFILE_URL = arg
-    if opt in ("-F", "--force"):
-        FORCE = True
+try:
+    opts, args = getopt.gnu_getopt(sys.argv[1:], "a:c:u:p:U:Ff", ["admin=", "config=", "username=", "password=", "url=", "force"])
+    for opt, arg in opts:
+        if opt in ("-a", "--admin"):
+            SEAFILE_ADMIN = arg
+        if opt in ("-c", "--config"):
+            CONFIG_FILE = arg
+        if opt in ("-u", "--username"):
+            SEAFILE_USERNAME = arg
+        if opt in ("-p", "--password"):
+            SEAFILE_PASSWORD = arg
+        if opt in ("-U", "--url"):
+            SEAFILE_URL = arg
+        if opt in ("-F", "--force"):
+            FORCE = True
+except:
+    ErrorExit(USAGE)
+
 
 if not CONFIG_FILE == "":
     if os.path.exists(CONFIG_FILE):
