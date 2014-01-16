@@ -39,7 +39,7 @@ Valid commands are:
     delete            delete users, libraries, groups and links
     quota             set quota for single users and whole domains
     search            search for users, groups and links
-    report            generate report per user to be sent by mail
+    report            generate HTML report per user to be sent by mail
     check             check for invalid links
     clean             check for invalid links and delete them
 
