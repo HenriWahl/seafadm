@@ -594,19 +594,31 @@ HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": SEAFILE_URL}
 # cookie management
 cookies = cookielib.CookieJar()
 # add cookie management and disable proxy
-opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cookies), urllib2.ProxyHandler({}))
+#opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cookies), urllib2.ProxyHandler({}))
+opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cookies))
 urllib2.install_opener(opener)
 
 # get logged into Seafile webinterface
 soup = GetSoup(SEAFILE_URL + "/accounts/login/")
 csrfmiddlewaretoken = soup.find("input", attrs={"name": "csrfmiddlewaretoken"}).attrs["value"]
 
+# get URL parts for form field "next"
+next_url = list()
+for i in SEAFILE_URL.split("://")[1].split("/"):
+    if len(i)!=0:
+        next_url.append(i)
+# kick out fqdn
+next_url.pop(0)
+next_url.extend(("home", "my"))
+next_url = "/" + "/".join(next_url)
+
 # via POST submitted formular data
 cgi_data = urllib.urlencode([("username", SEAFILE_USERNAME), \
                              ("password", SEAFILE_PASSWORD), \
                              ("csrfmiddlewaretoken", csrfmiddlewaretoken), \
-                             ("next", "/"), \
-                             ("submit", "Submit")])
+                             ("next", next_url), \
+                             ("submit", "Submit"),\
+                             ("remember_me", "off")])
 
 # add X-CSRFToken to requests
 HEADERS.update({"X-CSRFToken": csrfmiddlewaretoken})
@@ -880,3 +892,4 @@ else:
 
 # log out finally to keep number of open sessions small
 GetURL(SEAFILE_URL + "/accounts/logout/")
+
