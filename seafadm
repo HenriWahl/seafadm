@@ -464,15 +464,19 @@ def GetUsers():
     """
     users = dict()
     for d in GetData("/sys/useradmin/", section="main-panel"):
-        used_space, quota =  d[2].split("/")
+        try:
+            used_space, quota =  d[2].split("/")
+            quota = quota.strip()
+            quota, unit = quota.split(" ")
+            # calculate space in megabytes
+            quota = format(float(quota)*1024**SIZE_UNITS.index(unit.lower())/1024**2, ".1f")
+        except:
+            used_space = d[2]
+            quota = "None"
         used_space = used_space.strip()
-        quota = quota.strip()
         used_space, unit = used_space.split(" ")
         # calculate space in megabytes
-        used_space = float(used_space)*1024**SIZE_UNITS.index(unit.lower())/1024**2
-        quota, unit = quota.split(" ")
-        # dito
-        quota = float(quota)*1024**SIZE_UNITS.index(unit.lower())/1024**2
+        used_space = format(float(used_space)*1024**SIZE_UNITS.index(unit.lower())/1024**2, ".1f")
         user = User(EMail=str(d[0]), Creation=d[3], UsedSpace = used_space, Quota = quota)
         if isinstance(d[4], bs4.element.Tag):
             user.ID=d[4].a["data-url"].strip("/").split("/")[-1]
