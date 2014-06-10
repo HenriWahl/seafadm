@@ -463,7 +463,7 @@ def GetUsers():
     retrieve information about all users
     """
     users = dict()
-    for d in GetData("/sys/useradmin/", section="main-panel"):
+    for d in GetData("/sys/useradmin/", section="right-panel"):
         try:
             used_space, quota =  d[2].split("/")
             quota = quota.strip()
@@ -477,7 +477,8 @@ def GetUsers():
         used_space, unit = used_space.split(" ")
         # calculate space in megabytes
         used_space = format(float(used_space)*1024**SIZE_UNITS.index(unit.lower())/1024**2, ".1f")
-        user = User(EMail=str(d[0]), Creation=d[3], UsedSpace = used_space, Quota = quota)
+        creation = d[3].contents[0].strip().split("/")[0].strip()
+        user = User(EMail=str(d[0]), Creation=creation, UsedSpace = used_space, Quota = quota)
         if isinstance(d[4], bs4.element.Tag):
             user.ID=d[4].a["data-url"].strip("/").split("/")[-1]
         users[user.EMail] = (user)
@@ -489,8 +490,9 @@ def GetLibraries():
     retrieve information about all libraries
     """
     libraries = dict()
-    for d in GetData("/sys/seafadmin/", section="main-panel"):
-        library = Library(Name=d[0], ID=d[1], Owner=d[2], Description=d[3])
+    for d in GetData("/sys/seafadmin/", section="right-panel"):
+        library = Library(Name=d[0], ID=d[1], Owner=d[2].a.string,
+                          Description=d[3].replace("\n", " ").replace("\r", " ").strip())
         libraries[library.ID]=library
     return libraries
 
