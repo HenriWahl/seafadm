@@ -503,14 +503,15 @@ def GetLinks():
     Name = Owner = Creation = Count = URL = None
     """
     links = dict()
-    for d in GetData("/sys/publinkadmin/", section="All Public Links"):
-        link = Link(Name=d[0], Owner=d[1], Creation=d[2], Count=d[3])
+    # now verbose mode with bs4 Tags necessary for URL
+    for d in GetData("/sys/publinkadmin/", section="right-panel", mode="verbose"):
+        link = Link(Name=d[0][0], Owner=d[1][0], Creation=d[2][0], Count=d[3][0])
         if link.Name.startswith("/"):
             link.Type = "directory"
         else:
             link.Type = "file"
-        if isinstance(d[4], bs4.element.Tag):
-            link.ID = d[4].a["href"].split("=")[-1]
+        if isinstance(d[4][1], bs4.element.Tag):
+            link.ID = d[4][1].a["href"].split("=")[-1]
             link.URL = "/".join((SEAFILE_URL, link.Type[0], link.ID))
         links[link.ID] = link
     return links
