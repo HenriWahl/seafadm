@@ -12,7 +12,7 @@ Using seafadm one can collect informations about users, groups, links and librar
 REQUIREMENTS:
 -------------
 
-Seafadm is tested with Python 2.7 and needs the great BeautifulSoup module from http://www.crummy.com/software/BeautifulSoup/ version 4 as well as the Python Requests library. Fedora and CentOS users do a 
+Seafadm is tested with Python 2.7 and needs the great BeautifulSoup module from http://www.crummy.com/software/BeautifulSoup/ version 4 as well as the Python Requests library from http://docs.python-requests.org. Fedora and CentOS users do a 
 
     yum install python-beautifulsoup4 python-requests
 
