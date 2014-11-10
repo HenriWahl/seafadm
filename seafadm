@@ -499,7 +499,7 @@ def GetUsers():
         # calculate space in megabytes
         used_space = format(float(used_space)*1024**SIZE_UNITS.index(unit.lower())/1024**2, ".1f")
         creation = d[4].contents[0].strip().split("/")[0].strip()
-        user = User(EMail=str(d[0]), Creation=creation, UsedSpace = used_space, Quota = quota)
+        user = User(EMail=str(d[0].text.strip()), Creation=creation, UsedSpace = used_space, Quota = quota)
         if isinstance(d[5], bs4.element.Tag):
             user.ID=d[5].a["data-url"].strip("/").split("/")[-1]
         users[user.EMail] = (user)
