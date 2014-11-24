@@ -345,12 +345,11 @@ class Link(object):
             # add "/" to avoid HTTP status codes 301 and thus double number of requests
             if not self.URL.endswith("/"):
                 self.URL += "/"
-            ###content = GetURL(self.URL)
-            ###soup = bs4.BeautifulSoup(content)
             soup = GetSoup(self.URL)
-            for e in soup.find_all(attrs={"class":"error"}):
-                if e.string == "File does not exist":
-                    self.Validity = False
+            # text-panel contains error message - if no error then no text-panel div
+            for e in soup.find_all(attrs={"class":"text-panel"}):
+                # if something found link is invalid
+                self.Validity = False
         except requests.exceptions.HTTPError:
             self.Validity = False
         return self.Validity
