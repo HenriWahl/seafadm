@@ -456,7 +456,7 @@ def GetData(data_url, mode="simple", section=""):
             try:
                 table = div.find_all("table")[0]
             except:
-                print table
+                pass
     if not table == None:
         for tr in table:
             # there are some empty passages in HTML which have no .find_all() method
@@ -485,7 +485,7 @@ def GetUsers():
     users = dict()
     for d in GetData("/sys/useradmin/", section="right-panel"):
         try:
-            used_space, quota = d[3].split("/")
+            used_space, quota = d[3].text.strip().split("/")
             quota = quota.strip()
             quota, unit = quota.split(" ")
             # calculate space in megabytes
@@ -530,8 +530,8 @@ def GetLinks():
             link.Type = "directory"
         else:
             link.Type = "file"
-        if isinstance(d[4][1], bs4.element.Tag):
-            link.ID = d[4][1].a["href"].split("=")[-1]
+        if isinstance(d[4], bs4.element.Tag):
+            link.ID = d[4].a["href"].split("=")[-1]
             link.URL = "/".join((SEAFILE_URL, link.Type[0], link.ID))
         links[link.ID] = link
     return links
@@ -543,8 +543,8 @@ def GetGroups():
     """
     groups = dict()
     for d in GetData("/sys/groupadmin/", mode="verbose", section="right-panel"):
-        group = Group(Name=d[0][0], Owner=d[1][0], Creation=d[2][0])
-        group.ID = d[0][1].a["href"].strip("/").split("/")[-1]
+        group = Group(Name=d[0].text.strip(), Owner=d[1][0], Creation=d[2][0])
+        group.ID = d[0].a["href"].strip("/").split("/")[-1]
         soup = GetSoup(SEAFILE_URL + "/group/" + group.ID + "/members/")
         group.Members = list()
         for u in soup.find_all("ul", attrs={"class": "user-list"}):
