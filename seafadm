@@ -617,6 +617,8 @@ if not ( SEAFILE_URL != "" and SEAFILE_USERNAME != "" and SEAFILE_PASSWORD != ""
 
 # new session with cookies and so on
 session = requests.Session()
+# do not verify SSL/TLS cerificate
+session.verify = False
 # extra headers
 session.headers.update({"User-Agent": "Mozilla/5.0", "Referer": SEAFILE_URL})
 # get cookies
