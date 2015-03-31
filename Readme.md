@@ -133,7 +133,7 @@ Setting quota to a minimum of 20480 MB for all users of domain example.com:
 
     seafadm -c ./seafadm.conf quota domain min example.com 20480
 
-Setting quota to 1 MB for all users NOT in domain example.com:
+Setting quota to 1 MB for all users NOT in domain example.com:share/link/
 
     seafadm -c ./seafadm.conf quota domain not example.com 1
 

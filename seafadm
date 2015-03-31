@@ -145,6 +145,10 @@ import ConfigParser
 import json
 import requests
 import codecs
+
+# suppress SSL warnings
+requests.packages.urllib3.disable_warnings()
+ 
 # less UTF-8-sensible print replacement
 out = codecs.getwriter('utf-8')(sys.stdout)
 
