@@ -530,7 +530,7 @@ def GetLinks():
     links = dict()
     # now verbose mode with bs4 Tags necessary for URL
     for d in GetData("/sys/publinkadmin/", section="right-panel", mode="verbose"):
-        link = Link(Name=d[0][0], Owner=d[1][0], Creation=d[2][0], Count=d[3][0])
+        link = Link(Name=d[0][0], Owner=d[1][0], Creation=d[2].time["datetime"], Count=d[3][0])
         if link.Name.startswith("/"):
             link.Type = "directory"
         else:
