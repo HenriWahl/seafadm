@@ -43,7 +43,7 @@ Arguments for show command:
 
     users             show all users, their ID, creation date and quota as list
     user <username>   show extra details about <username>, its libraries, shares and groups
-    libs              show all libraries, their ID, owners and description as list
+    libs              show all libraries, their ID and owners as list
     groups            show all groups, their ID, owner, creation date and members as list
     group <group>     show details about single <group>
     links             show links, their ID, creation date and URL as list ordered by owner
@@ -303,7 +303,7 @@ class User(object):
         """
         shares = list()
         for s in GetData("/useradmin/info/%s/" % (self.EMail), section="Shared"):
-            share = Share(Name=s[1], Owner=s[2], Description=s[3], Type="user")
+            share = Share(Name=s[1], Owner=s[2], Type="user")
             shares.append(share)
         return shares
 
@@ -312,7 +312,7 @@ class Library(object):
     """
     a single library
     """
-    Name = ID = Owner = Description = None
+    Name = ID = Owner = None
 
     def __init__(self, **kwds):
         # fill properties with given values
@@ -364,7 +364,7 @@ class Group(object):
     """
     group and its members
     """
-    Name = ID = Owner = Creation = Members = Description = None
+    Name = ID = Owner = Creation = Members = None
 
     def __init__(self, **kwds):
         # fill properties with given values
@@ -391,7 +391,7 @@ class Group(object):
         """
         shares = list()
         for s in GetData("/group/%s/" % (self.ID), section="grp-repos"):
-            share = Share(Name=s[1], Owner=s[2], Description=s[3], Type="group", Group=self.Name)
+            share = Share(Name=s[1], Owner=s[2], Type="group", Group=self.Name)
             shares.append(share)
         return shares
 
@@ -400,7 +400,7 @@ class Share(object):
     """
     a single share
     """
-    Name = Owner = Description = Type = Group = None
+    Name = Owner = Type = Group = None
 
     def __init__(self, **kwds):
         # fill properties with given values
@@ -516,8 +516,7 @@ def GetLibraries():
     """
     libraries = dict()
     for d in GetData("/sys/seafadmin/", section="right-panel"):
-        library = Library(Name=d[0], ID=d[1], Owner=d[2].a.string,
-                          Description=d[3].replace("\n", " ").replace("\r", " ").strip())
+        library = Library(Name=d[0], ID=d[1], Owner=d[2].a.string)
         libraries[library.ID]=library
     return libraries
 
@@ -665,7 +664,7 @@ if len(args) > 0:
             elif objects in ["repos", "libs", "libraries"]:
                 libs = GetLibraries()
                 for l in sorted(libs.values(), cmp=lambda x,y: cmp((x.Owner, x.Name), (y.Owner, y.Name))):
-                    write("|".join((l.ID, l.Owner, l.Name, l.Description)))
+                    write("|".join((l.ID, l.Owner, l.Name)))
             elif objects == "links":
                 links = GetLinks()
                 for l in sorted(links.values(), cmp=lambda x,y: cmp((x.Owner, x.Name) , (y.Owner, y.Name))):
