@@ -32,6 +32,7 @@ Valid options are:
 Valid commands are:
 
     show              show informations about users, libraries, groups and links
+    add               add users
     delete            delete users, libraries, groups and links
     quota             set quota for single users and whole domains
     search            search for users, groups and links
@@ -48,6 +49,10 @@ Arguments for show command:
     group <group>     show details about single <group>
     links             show links, their ID, creation date and URL as list ordered by owner
     all               show extra details about all users
+
+Arguments for add command:
+
+    user <email> <password>     add user <email> with password <password>
 
 Arguments for delete command:
 
@@ -96,6 +101,10 @@ Showing users as list:
 Showing details about one single user:
 
     seafadm -c ./seafadm.conf show user joe@example.com
+
+Adding an user:
+
+    seafadm -c ./seafadm.conf add user joe@example.com bar1234
 
 Deleting an user:
 
@@ -652,7 +661,7 @@ session.post(SEAFILE_URL + "/accounts/login/", data)
 
 # check args for seafadm
 if len(args) > 0:
-    # when only 1 arg is given args is a tring no list?
+    # when only 1 arg is given args is a string no list?
     if args[0].lower() in ["list", "show"]:
          # show everything
         if len(args) >= 2:
@@ -758,6 +767,28 @@ if len(args) > 0:
                 ErrorExit(USAGE)
         else:
             ErrorExit(USAGE)
+
+
+    elif args[0].lower() == "add":
+        # link and user
+        if len(args) >= 4:
+            if args[1].lower() in ["user"]:
+                email = args[2]
+                password = args[3]
+
+                result = GetAjax('%s/useradmin/add/' % SEAFILE_URL,
+                             data={'csrfmiddlwaretoken': session.cookies["csrftoken"], 'email': email,
+                                   'password1': password, 'password2': password},
+                             referer="%s/sys/useradmin/" % (SEAFILE_URL))
+                result = json.loads(result)
+                if 'success' in result:
+                    write('Created user %s.' % (email))
+                elif 'error' in result:
+                    error = bs4.BeautifulSoup(result['error']).text
+                    write(error)
+        else:
+            ErrorExit(USAGE)
+
 
     elif args[0].lower() == "quota":
         # domain or user
