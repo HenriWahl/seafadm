@@ -49,7 +49,7 @@ Arguments for show command:
 
     users             show all users, their ID, creation date and quota as list
     user <username>   show extra details about <username>, its libraries, shares and groups
-    libs              show all libraries, their ID, owners and description as list
+    libs              show all libraries, their ID and owners as list
     groups            show all groups, their ID, owner, creation date and members as list
     group <group>     show details about single <group>
     links             show links, their ID, creation date and URL as list ordered by owner 
