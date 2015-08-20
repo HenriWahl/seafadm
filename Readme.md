@@ -7,7 +7,7 @@ ABOUT:
 Seafadm allows to do some administration tasks for Seafile (https://github.com/haiwen/seafile) from command line. It collects informations and executes commands by internally calling the web interface of Seafile, Seahub. The used BeautifulSoup module allows the command line tool to be seen as a browser from Seahub's perspective.
 Using seafadm one can collect informations about users, groups, links and libraries. These objects also can be deleted. Quotas can be set for users and domains. Searches can be done in users, libraries and groups. Reports can be generated to be sent to users by mail.
 
-**Attention:** I try to keep as close as possible with seafadm to the official Seafile releases. There are minor differences between releases which make small corrections necessary. Especially if you use an older version of Seafile you will need to use an older one seafadm too. See the tags to find a matching version.
+**Attention:** I try to keep as close as possible with seafadm to the official Seafile releases. There are minor differences between releases which make small corrections necessary. Especially if you use an older version of Seafile you will need to use an older one of seafadm too. See the tags to find a matching version.
 
 REQUIREMENTS:
 -------------
@@ -38,10 +38,11 @@ Valid options are:
 Valid commands are:
 
     show              show informations about users, libraries, groups and links
+    add               add users
     delete            delete users, libraries, groups and links
     quota             set quota for single users and whole domains
     search            search for users, groups and links
-    report            generate HTML report per user to be sent by mail
+    report            generate report per user to be sent by mail
     check             check for invalid links
     clean             check for invalid links and delete them
 
@@ -52,8 +53,12 @@ Arguments for show command:
     libs              show all libraries, their ID and owners as list
     groups            show all groups, their ID, owner, creation date and members as list
     group <group>     show details about single <group>
-    links             show links, their ID, creation date and URL as list ordered by owner 
+    links             show links, their ID, creation date and URL as list ordered by owner
     all               show extra details about all users
+
+Arguments for add command:
+
+    user <email> <password>     add user <email> with password <password>
 
 Arguments for delete command:
 
