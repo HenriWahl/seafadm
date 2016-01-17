@@ -447,7 +447,7 @@ def GetSoup(url, data=None):
     """
     get HTML content as BeautifulSoup object
     """
-    return bs4.BeautifulSoup(GetURL(url, data), "html.parser")
+    return bs4.BeautifulSoup(GetURL(url, data))
 
 
 def GetData(data_url, mode="simple", section=""):
