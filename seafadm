@@ -422,6 +422,8 @@ def GetURL(url, data=None):
     shortcut for URL request
     """
     if data != None:
+        data['csrfmiddlewaretoken'] = session.cookies['csrftoken']
+        data['submit'] = 'Submit'
         response = session.post(url, data)
     else:
         response = session.get(url)
@@ -435,11 +437,12 @@ def GetAjax(url, data=None, referer=None):
     """
     headers =  dict(session.headers.copy().items())
     headers.update({'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                    'Accept': 'text/plain',
+                    'Accept': 'application/json, text/javascript, */*; q=0.01',
                     'X-Requested-With': 'XMLHttpRequest'})
     if referer != None:
         headers.update({"Referer" : referer})
     response = session.post(url, data=data, headers=headers)
+
     return response.text
 
 
@@ -447,7 +450,13 @@ def GetSoup(url, data=None):
     """
     get HTML content as BeautifulSoup object
     """
-    return bs4.BeautifulSoup(GetURL(url, data))
+    url_data = GetURL(url, data)
+    try:
+        soup = bs4.BeautifulSoup(url_data, 'lxml')
+    except:
+        soup = bs4.BeautifulSoup(url_data, 'html.parser')
+
+    return soup
 
 
 def GetData(data_url, mode="simple", section=""):
@@ -458,6 +467,9 @@ def GetData(data_url, mode="simple", section=""):
     table = None
     # sub-url as data-url gets anti-pagination-oage-request added
     soup = GetSoup(SEAFILE_URL + data_url + "?per_page=%s" % (PER_PAGE))
+
+    ###print soup
+
     # sections are headed by h3 headers or li list items and thus identifyable
     h3s = soup.find_all("h3")
     for h3 in h3s:
@@ -470,7 +482,7 @@ def GetData(data_url, mode="simple", section=""):
         if not div == None:
             try:
                 table = div.find_all("table")[0]
-            except:
+            except Exception, err:
                 pass
     if not table == None:
         for tr in table:
@@ -517,6 +529,7 @@ def GetUsers():
         if isinstance(d[4], bs4.element.Tag):
             user.ID=d[4].a["data-url"].strip("/").split("/")[-1]
         users[user.EMail] = (user)
+
     return users
 
 
@@ -526,7 +539,7 @@ def GetLibraries():
     """
     libraries = dict()
     for d in GetData("/sys/seafadmin/", section="right-panel"):
-        library = Library(Name=d[0], ID=d[1], Owner=d[2].a.string)
+        library = Library(Name=d[1], ID=d[3], Owner=d[4].a.string)
         libraries[library.ID]=library
     return libraries
 
@@ -545,7 +558,7 @@ def GetLinks():
         else:
             link.Type = "file"
         if isinstance(d[4], bs4.element.Tag):
-            link.ID = d[4].a["href"].split("=")[-1]
+            link.ID = d[4].a["data-token"].split("=")[-1]
             link.URL = "/".join((SEAFILE_URL, link.Type[0], link.ID))
         links[link.ID] = link
     return links
@@ -650,12 +663,12 @@ next_url.pop(0)
 next_url.extend(("home", "my"))
 next_url = "/" + "/".join(next_url)
 
-data = {"username": SEAFILE_USERNAME,
-        "password": SEAFILE_PASSWORD,
-        "csrfmiddlewaretoken": session.cookies["csrftoken"],\
-        "next": next_url,\
-        "submit": "Submit",\
-        "remember_me": "off"}
+data = {'login': SEAFILE_USERNAME,
+        'password': SEAFILE_PASSWORD,
+        'csrfmiddlewaretoken': session.cookies['csrftoken'],\
+        'next': next_url,\
+        'submit': 'Submit',\
+        'remember_me': 'off'}
 
 # effectively login
 session.post(SEAFILE_URL + "/accounts/login/", data)
@@ -730,7 +743,7 @@ if len(args) > 0:
                     if user in users:
                         if Confirm("Delete user %s" % (user)):
                             user = users[user]
-                            GetURL("%s/useradmin/remove/%s/" % (SEAFILE_URL, user.ID))
+                            GetURL("%s/useradmin/remove/%s/" % (SEAFILE_URL, user.EMail), {})
                             write("User %s deleted." % (user.EMail))
                     else:
                         ErrorExit("User %s does not exist." % (user))
@@ -739,7 +752,7 @@ if len(args) > 0:
                     libs = GetLibraries()
                     if lib in libs:
                         if Confirm("Delete library %s" % (lib)):
-                            GetAjax("%s/ajax/repo/%s/remove/" % (SEAFILE_URL, lib))
+                            GetURL('%s/sys/seafadmin/delete/%s/' % (SEAFILE_URL, lib), {})
                             write("Library %s deleted." % (lib))
                     else:
                          ErrorExit("Library %s does not exist." % (lib))
@@ -751,7 +764,7 @@ if len(args) > 0:
                         link = link.split("/")[-1]
                     if link in links:
                         if Confirm("Delete link %s" % (link)):
-                            GetURL("%s/share/link/remove/?t=%s" % (SEAFILE_URL, link))
+                            GetAjax('%s/sys/publink/remove/' % (SEAFILE_URL), {'t': link})
                             write("Link %s deleted." % (link))
                     else:
                         ErrorExit("Link %s does not exist." % (link))
@@ -760,7 +773,7 @@ if len(args) > 0:
                     groups = GetGroups()
                     if group in groups:
                         if Confirm("Delete group %s" % (group)):
-                            GetURL("%s/group/%s/remove" % (SEAFILE_URL, groups[group].ID))
+                            GetURL("%s/group/%s/remove/" % (SEAFILE_URL, groups[group].ID), {})
                             write("Group %s deleted." % (group))
                     else:
                         ErrorExit("Group %s does not exist." % (group))
@@ -808,7 +821,7 @@ if len(args) > 0:
                             except: ErrorExit("%s is no valid quota size." % (quota))
                             write("Set quota for %s to %s MB." %(user.EMail, quota))
                             GetAjax("%s/useradmin/%s/set_quota/" % (SEAFILE_URL, user.EMail),
-                                    data={'email': user.EMail, 'quota': quota},
+                                    data={'email': user.EMail, 'space_quota': quota},
                                     referer="%s/useradmin/info/%s/" % (SEAFILE_URL, user.EMail))
                     else:
                         ErrorExit("User %s does not exist." % (user))
@@ -846,7 +859,7 @@ if len(args) > 0:
                             for user in users_mod:
                                 write("Set quota for %s to %s MB." %(user.EMail, quota))
                                 GetAjax("%s/useradmin/%s/set_quota/" % (SEAFILE_URL, user.EMail),
-                                    data={'email': user.EMail, 'quota': quota},
+                                    data={'email': user.EMail, 'space_quota': quota},
                                     referer="%s/useradmin/info/%s/" % (SEAFILE_URL, user.EMail))
             else:
                 ErrorExit(USAGE)
@@ -926,7 +939,7 @@ if len(args) > 0:
                             invalid_links.append(l)
                     for i in invalid_links:
                         write("Deleting invalid link %s|%s|%s." % (i.URL, i.Owner, i.Name))
-                        GetURL("%s/share/link/remove/?t=%s" % (SEAFILE_URL, i.ID))
+                        GetAjax('%s/sys/publink/remove/' % (SEAFILE_URL), {'t': i.ID})
             else:
                 ErrorExit(USAGE)
         else:
