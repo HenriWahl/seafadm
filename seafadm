@@ -467,9 +467,6 @@ def GetData(data_url, mode="simple", section=""):
     table = None
     # sub-url as data-url gets anti-pagination-oage-request added
     soup = GetSoup(SEAFILE_URL + data_url + "?per_page=%s" % (PER_PAGE))
-
-    ###print soup
-
     # sections are headed by h3 headers or li list items and thus identifyable
     h3s = soup.find_all("h3")
     for h3 in h3s:
@@ -513,12 +510,18 @@ def GetUsers():
     for d in GetData("/sys/useradmin/", section="right-panel"):
         try:
             used_space, quota = d[2].text.strip().split("/")
-            quota = quota.strip()
+			# silly 0\xa0 UTF-character makes trouble since Seafile server 5.0.5
+			# gets converted by codecs to '?' instead of space
+			# hopefully goes away with  Python3
+            used_space = codecs.encode(used_space, 'ascii', 'replace').replace('?', ' ')
+            quota = codecs.encode(quota, 'ascii', 'replace').replace('?', ' ')
+            quota = quota.strip()          
             quota, unit = quota.split(" ")
             # calculate space in megabytes
             quota = format(float(quota)*1024**SIZE_UNITS.index(unit.lower())/1024**2, ".1f")
         except Exception, err:
             used_space = d[2]
+            used_space = codecs.encode(d[2], 'ascii', 'replace').replace('?', ' ')
             quota = "None"
         used_space = used_space.strip()
         used_space, unit = used_space.split(" ")
