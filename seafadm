@@ -18,6 +18,16 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
+from __future__ import print_function
+
+import sys
+import getopt
+import os.path
+import ConfigParser
+import json
+import requests
+import codecs
+
 USAGE = """
 seafadm [option...] [command] [argument]
 
@@ -147,15 +157,6 @@ Delete invalid links
     seafadm -c ./seafadm.conf clean links
 """
 
-import sys
-import getopt
-import os.path
-import ConfigParser
-import json
-import requests
-import codecs
-
- 
 # suppress SSL warnings - does not work on CentOS 6, so there is a condition
 if "packages" in dir(requests):
     requests.packages.urllib3.disable_warnings()
@@ -265,7 +266,7 @@ class User(object):
             write("<h3>Links you share:</h3>")
             for l in self.Links:
                 write("<a href=%s>%s</a> %s<br>" %(l.URL, l.URL, l.Name))
-            print
+            print()
             write("<p>Manage your links at <a href=%s/share/links/>%s/share/links/</a></p>" % (SEAFILE_URL, SEAFILE_URL))
         if len(self.Shares) > 0:
             write("<h3>Libraries shared with you:</h3>")
@@ -274,7 +275,7 @@ class User(object):
                     write("%s by user %s<br>" % (s.Name, s.Owner))
                 else:
                     write("%s by group %s<br>" % (s.Name, s.Group))
-            print
+            print()
             write("<p>Manage your shares at <a href=%s/share/>%s/share/</a></p>" % (SEAFILE_URL, SEAFILE_URL))
         if SEAFILE_ADMIN != "":
             write("<p>If you want to delete your Seafile account at %s please contact <a href=mailto:%s>%s</a>.</p>" % (SEAFILE_URL, SEAFILE_ADMIN, SEAFILE_ADMIN))
@@ -441,6 +442,8 @@ def GetAjax(url, data=None, referer=None):
                     'X-Requested-With': 'XMLHttpRequest'})
     if referer != None:
         headers.update({"Referer" : referer})
+    if not url.startswith('http'):
+        url = '{0}{1}'.format(SEAFILE_URL, url)
     response = session.post(url, data=data, headers=headers)
 
     return response.text
@@ -541,8 +544,11 @@ def GetLibraries():
     retrieve information about all libraries
     """
     libraries = dict()
-    for d in GetData("/sys/seafadmin/", section="right-panel"):
-        library = Library(Name=d[1], ID=d[3], Owner=d[4].a.string)
+    result = json.loads(GetAjax('/api/v2.1/admin/libraries?per_page=999999'))
+    for lib in result['repos']:
+        library = Library(Name=lib['name'],\
+                          ID=lib['id'],\
+                          Owner=lib['owner'])
         libraries[library.ID]=library
     return libraries
 
@@ -729,7 +735,7 @@ if len(args) > 0:
                 for u in sorted(users.values(), cmp=lambda x, y: cmp(x.EMail, y.EMail)):
                     u.CollectInfo(libs=libs, links=links, groups=groups)
                     u.PrintInfo()
-                    print
+                    print()
             else:
                 ErrorExit(USAGE)
         else:
@@ -767,7 +773,7 @@ if len(args) > 0:
                         link = link.split("/")[-1]
                     if link in links:
                         if Confirm("Delete link %s" % (link)):
-                            GetAjax('%s/sys/publink/remove/' % (SEAFILE_URL), {'t': link})
+                            GetAjax('/sys/publink/remove/', {'t': link})
                             write("Link %s deleted." % (link))
                     else:
                         ErrorExit("Link %s does not exist." % (link))
@@ -793,7 +799,7 @@ if len(args) > 0:
                 email = args[2]
                 password = args[3]
 
-                result = GetAjax('%s/useradmin/add/' % SEAFILE_URL,
+                result = GetAjax('/useradmin/add/',
                              data={'csrfmiddlwaretoken': session.cookies["csrftoken"], 'email': email,
                                    'password1': password, 'password2': password},
                              referer="%s/sys/useradmin/" % (SEAFILE_URL))
@@ -823,7 +829,7 @@ if len(args) > 0:
                             try: int(quota)
                             except: ErrorExit("%s is no valid quota size." % (quota))
                             write("Set quota for %s to %s MB." %(user.EMail, quota))
-                            GetAjax("%s/useradmin/%s/set_quota/" % (SEAFILE_URL, user.EMail),
+                            GetAjax('/useradmin/%s/set_quota/' % (user.EMail),
                                     data={'email': user.EMail, 'space_quota': quota},
                                     referer="%s/useradmin/info/%s/" % (SEAFILE_URL, user.EMail))
                     else:
@@ -861,7 +867,7 @@ if len(args) > 0:
                         if Confirm(question[mode]):
                             for user in users_mod:
                                 write("Set quota for %s to %s MB." %(user.EMail, quota))
-                                GetAjax("%s/useradmin/%s/set_quota/" % (SEAFILE_URL, user.EMail),
+                                GetAjax('/useradmin/%s/set_quota/' % (user.EMail),
                                     data={'email': user.EMail, 'space_quota': quota},
                                     referer="%s/useradmin/info/%s/" % (SEAFILE_URL, user.EMail))
             else:
@@ -883,20 +889,20 @@ if len(args) > 0:
                         if search in user.EMail.lower():
                             user.CollectInfo(libs=libs, links=links, groups=groups)
                             user.PrintInfo()
-                            print
+                            
                 elif args[1].lower() == "group":
                     groups = GetGroups()
                     for group in groups.values():
                         if search in group.Name.lower():
                             group.PrintInfo()
-                            print
+                            print()
                 elif args[1].lower() == "link":
                     links = GetLinks()
                     for link in links.values():
                         if search in link.Name.lower() or\
                            search in link.URL:
                             link.PrintInfo()
-                            print
+                            
             else:
                 ErrorExit(USAGE)
         else:
@@ -942,7 +948,7 @@ if len(args) > 0:
                             invalid_links.append(l)
                     for i in invalid_links:
                         write("Deleting invalid link %s|%s|%s." % (i.URL, i.Owner, i.Name))
-                        GetAjax('%s/sys/publink/remove/' % (SEAFILE_URL), {'t': i.ID})
+                        GetAjax('/sys/publink/remove/', {'t': i.ID})
             else:
                 ErrorExit(USAGE)
         else:
