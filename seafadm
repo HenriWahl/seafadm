@@ -20,13 +20,13 @@
 
 from __future__ import print_function
 
-import sys
-import getopt
-import os.path
-import ConfigParser
-import json
-import requests
 import codecs
+import ConfigParser
+import getopt
+import json
+import os.path
+import requests
+import sys
 
 USAGE = """
 seafadm [option...] [command] [argument]
@@ -158,8 +158,8 @@ Delete invalid links
 """
 
 # suppress SSL warnings - does not work on CentOS 6, so there is a condition
-if "packages" in dir(requests):
-    requests.packages.urllib3.disable_warnings()
+#if "packages" in dir(requests):
+#    requests.packages.urllib3.disable_warnings()
 
 # less UTF-8-sensible print replacement
 out = codecs.getwriter('utf-8')(sys.stdout)
@@ -530,8 +530,8 @@ def GetUsers():
         used_space, unit = used_space.split(" ")
         # calculate space in megabytes
         used_space = format(float(used_space)*1024**SIZE_UNITS.index(unit.lower())/1024**2, ".1f")
-        creation = d[3].contents[0].strip().split("/")[0].strip()
-        user = User(EMail=str(d[0].text.strip()), Creation=creation, UsedSpace = used_space, Quota = quota)
+        creation = d[3].contents[0].strip().split("/")[0].strip()      
+        user = User(EMail=str(d[0].a.text.strip()), Creation=creation, UsedSpace = used_space, Quota = quota)
         if isinstance(d[4], bs4.element.Tag):
             user.ID=d[4].a["data-url"].strip("/").split("/")[-1]
         users[user.EMail] = (user)
@@ -708,7 +708,7 @@ if len(args) > 0:
             elif objects =="user":
                 if len(args) >= 3:
                     user = args[2]
-                    users = GetUsers()
+                    users = GetUsers()                  
                     if not user in users.keys():
                         ErrorExit("User %s does not exist." % (user))
                     libs = GetLibraries()
