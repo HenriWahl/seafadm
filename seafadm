@@ -253,7 +253,7 @@ class User(object):
             write("<h3>Libraries:</h3>")
             for l in self.Libs:
                 write("%s<br>" % (l.Name))
-            write("<p>Manage your libraries at <a href=%s/home/my/>%s/home/my/</a></p>" % (SEAFILE_URL, SEAFILE_URL))
+            write("<p>Manage your libraries at <a href=%s/#my-libs/>%s/#my-libs/</a></p>" % (SEAFILE_URL, SEAFILE_URL))
         if len(self.Groups) > 0:
             write("<h3>Groups:</h3>")
             for g in self.Groups:
@@ -261,13 +261,13 @@ class User(object):
                     write("%s %s<br>" % (g.Name, "(Owner)"))
                 else:
                     write("%s<br>" % (g.Name))
-            write("<p>Manage your groups at <a href=%s/groups/>%s/groups/</a></p>" % (SEAFILE_URL, SEAFILE_URL))
+            write("<p>Manage your groups at <a href=%s/#groups/>%s/#groups/</a></p>" % (SEAFILE_URL, SEAFILE_URL))
         if len(self.Links) > 0:
             write("<h3>Links you share:</h3>")
             for l in self.Links:
                 write("<a href=%s>%s</a> %s<br>" %(l.URL, l.URL, l.Name))
             print()
-            write("<p>Manage your links at <a href=%s/share/links/>%s/share/links/</a></p>" % (SEAFILE_URL, SEAFILE_URL))
+            write("<p>Manage your links at <a href=%s/#share-admin-share-links/>%s/#share-admin-share-links/</a></p>" % (SEAFILE_URL, SEAFILE_URL))
         if len(self.Shares) > 0:
             write("<h3>Libraries shared with you:</h3>")
             for s in self.Shares:
@@ -276,7 +276,7 @@ class User(object):
                 else:
                     write("%s by group %s<br>" % (s.Name, s.Group))
             print()
-            write("<p>Manage your shares at <a href=%s/share/>%s/share/</a></p>" % (SEAFILE_URL, SEAFILE_URL))
+            write("<p>Manage your shares at <a href=%s/#share-admin-libs/>%s/#share-admin-libs/</a></p>" % (SEAFILE_URL, SEAFILE_URL))
         if SEAFILE_ADMIN != "":
             write("<p>If you want to delete your Seafile account at %s please contact <a href=mailto:%s>%s</a>.</p>" % (SEAFILE_URL, SEAFILE_ADMIN, SEAFILE_ADMIN))
         write("</body></html>")
