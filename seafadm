@@ -512,7 +512,7 @@ def GetUsers():
     users = dict()
     for d in GetData("/sys/useradmin/", section="right-panel"):
         try:
-            used_space, quota = d[2].text.strip().split("/")
+            used_space, quota = d[3].text.strip().split("/")
 			# silly 0\xa0 UTF-character makes trouble since Seafile server 5.0.5
 			# gets converted by codecs to '?' instead of space
 			# hopefully goes away with  Python3
@@ -523,17 +523,16 @@ def GetUsers():
             # calculate space in megabytes
             quota = format(float(quota)*1024**SIZE_UNITS.index(unit.lower())/1024**2, ".1f")
         except Exception, err:
-            used_space = d[2]
-            used_space = codecs.encode(d[2], 'ascii', 'replace').replace('?', ' ')
+            used_space = codecs.encode(d[3], 'ascii', 'replace').replace('?', ' ')
             quota = "None"
         used_space = used_space.strip()
         used_space, unit = used_space.split(" ")
         # calculate space in megabytes
         used_space = format(float(used_space)*1024**SIZE_UNITS.index(unit.lower())/1024**2, ".1f")
-        creation = d[3].contents[0].strip().split("/")[0].strip()      
-        user = User(EMail=str(d[0].a.text.strip()), Creation=creation, UsedSpace = used_space, Quota = quota)
-        if isinstance(d[4], bs4.element.Tag):
-            user.ID=d[4].a["data-url"].strip("/").split("/")[-1]
+        creation = d[4].contents[0].strip().split("/")[0].strip()
+        user = User(EMail=str(d[1].a.text.strip()), Creation=creation, UsedSpace = used_space, Quota = quota)
+        if isinstance(d[5], bs4.element.Tag):
+            user.ID=d[5].a["data-url"].strip("/").split("/")[-1]
         users[user.EMail] = (user)
 
     return users
