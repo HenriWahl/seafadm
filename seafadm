@@ -560,13 +560,13 @@ def GetLinks():
     links = dict()
     # now verbose mode with bs4 Tags necessary for URL
     for d in GetData("/sys/publinkadmin/", section="right-panel", mode="verbose"):
-        link = Link(Name=d[0][0], Owner=d[1][0], Creation=d[2].time["datetime"], Count=d[3][0])
+        link = Link(Name=d[0][0], Owner=d[1][0], Creation=d[3].time["datetime"], Count=d[4][0])
         if link.Name.startswith("/"):
             link.Type = "directory"
         else:
             link.Type = "file"
-        if isinstance(d[4], bs4.element.Tag):
-            link.ID = d[4].a["data-token"].split("=")[-1]
+        if isinstance(d[5], bs4.element.Tag):
+            link.ID = d[5].a["data-token"].split("=")[-1]
             link.URL = "/".join((SEAFILE_URL, link.Type[0], link.ID))
         links[link.ID] = link
     return links
