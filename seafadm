@@ -27,6 +27,7 @@ import json
 import os.path
 import requests
 import sys
+import urllib3
 
 USAGE = """
 seafadm [option...] [command] [argument]
@@ -161,6 +162,9 @@ Delete invalid links
 if "packages" in dir(requests):
     if 'urllib3' in dir(requests.packages):
         requests.packages.urllib3.disable_warnings()
+
+# default disable https warnings
+urllib3.disable_warnings()
 
 # less UTF-8-sensible print replacement
 out = codecs.getwriter('utf-8')(sys.stdout)
