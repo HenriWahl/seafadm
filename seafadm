@@ -159,7 +159,8 @@ Delete invalid links
 
 # suppress SSL warnings - does not work on CentOS 6, so there is a condition
 if "packages" in dir(requests):
-    requests.packages.urllib3.disable_warnings()
+    if 'urllib3' in dir(requests.packages):
+        requests.packages.urllib3.disable_warnings()
 
 # less UTF-8-sensible print replacement
 out = codecs.getwriter('utf-8')(sys.stdout)
