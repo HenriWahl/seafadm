@@ -25,8 +25,15 @@ import ConfigParser
 import getopt
 import json
 import os.path
+import Queue
+import psutil
 import requests
+import shlex
+import subprocess
 import sys
+import threading
+import time
+import traceback
 import urllib3
 
 USAGE = """
@@ -64,6 +71,7 @@ Arguments for show command:
 Arguments for add command:
 
     user <email> <password>     add user <email> with password <password>
+
 
 Arguments for delete command:
 
@@ -177,6 +185,12 @@ PER_PAGE = 100000
 SIZE_UNITS = ["bytes", "kb", "mb", "gb", "tb"]
 # no forcing as default
 FORCE = False
+
+queue_garbage = Queue.Queue(maxsize=0)
+number_of_threads = 10
+number_of_libraries = 0
+seafile_dir = '/opt/seafile'
+seaf_gc = seafile_dir + '/seafile-server-latest/seafile/bin/seafserv-gc'
 
 
 def write(string):
@@ -318,7 +332,7 @@ class User(object):
         get shares a user gets from other users
         """
         shares = list()
-        for s in GetData("/useradmin/info/%s/" % (self.EMail), section="Shared"):
+        for s in get_data("/useradmin/info/%s/" % (self.EMail), section="Shared"):
             share = Share(Name=s[1], Owner=s[2], Type="user")
             shares.append(share)
         return shares
@@ -366,7 +380,7 @@ class Link(object):
             # add "/" to avoid HTTP status codes 301 and thus double number of requests
             if not self.URL.endswith("/"):
                 self.URL += "/"
-            soup = GetSoup(self.URL)
+            soup = get_soup(self.URL)
             # text-panel contains error message - if no error then no text-panel div
             for e in soup.find_all(attrs={"class":"text-panel"}):
                 # if something found link is invalid
@@ -406,7 +420,7 @@ class Group(object):
         get shares a group gets from users
         """
         shares = list()
-        for s in GetData("/group/%s/" % (self.ID), section="grp-repos"):
+        for s in get_data("/group/%s/" % (self.ID), section="grp-repos"):
             share = Share(Name=s[1], Owner=s[2], Type="group", Group=self.Name)
             shares.append(share)
         return shares
@@ -423,7 +437,50 @@ class Share(object):
         for k in kwds: self.__dict__[k] = kwds[k]
 
 
-def GetURL(url, data=None):
+class WorkerGarbage(threading.Thread):
+    '''
+    Actual worker for garbage cleaning
+    '''
+    def __init__(self, queue_garbage):
+        threading.Thread.__init__(self, name='GarbageCollector')
+        self.setDaemon(1)
+        self.queue_garbage = queue_garbage
+
+
+    def run(self):
+        '''
+        As long as there are libraries in queue (or number of remaining libraries is > 0) take libraries out of queue and
+        process them
+        :return:
+        '''
+        # needed global values
+        global number_of_libraries, seafile_dir
+
+        while number_of_libraries > 0:
+            try:
+                # get library from quueue
+                library = self.queue_garbage.get()
+                # prepare arguments and environment
+                args = shlex.split('{0} -c {1}/ccnet -d {1}/seafile-data -F {1}/conf {2}'.format(seaf_gc, seafile_dir, library))
+                env = {'LD_LIBRARY_PATH':'{0}/seafile-server-latest/seafile/lib:{0}/seafile-server-latest/seafile/lib64'.format(seafile_dir)}
+
+                process = subprocess.Popen(args, env=env, cwd=seafile_dir)
+                (output, error) = process.communicate()
+                status = process.wait()
+                print('Processed library:', library)
+                print('Thread ident:', self.ident)
+                print('Output:', output)
+                print('Error:', error)
+                queue_garbage.task_done()
+
+            except Exception:
+                traceback.print_exc(file=sys.stdout)
+                sys.stdout.flush()
+
+            number_of_libraries -= 1
+            print('Remaining libraries:', number_of_libraries)
+
+def get_url(url, data=None):
     """
     shortcut for URL request
     """
@@ -437,7 +494,7 @@ def GetURL(url, data=None):
     return response.text
 
 
-def GetAjax(url, data=None, referer=None):
+def get_ajax(url, data=None, referer=None):
     """
     shortcut for Ajax request
     """
@@ -454,11 +511,11 @@ def GetAjax(url, data=None, referer=None):
     return response.text
 
 
-def GetSoup(url, data=None):
+def get_soup(url, data=None):
     """
     get HTML content as BeautifulSoup object
     """
-    url_data = GetURL(url, data)
+    url_data = get_url(url, data)
     try:
         soup = bs4.BeautifulSoup(url_data, 'lxml')
     except:
@@ -467,14 +524,14 @@ def GetSoup(url, data=None):
     return soup
 
 
-def GetData(data_url, mode="simple", section=""):
+def get_data(data_url, mode="simple", section=""):
     """
     get data of given URL, e.g. users, needing desired section of page
     """
     rows = list()
     table = None
     # sub-url as data-url gets anti-pagination-oage-request added
-    soup = GetSoup(SEAFILE_URL + data_url + "?per_page=%s" % (PER_PAGE))
+    soup = get_soup(SEAFILE_URL + data_url + "?per_page=%s" % (PER_PAGE))
     # sections are headed by h3 headers or li list items and thus identifyable
     h3s = soup.find_all("h3")
     for h3 in h3s:
@@ -510,12 +567,12 @@ def GetData(data_url, mode="simple", section=""):
     return rows
 
 
-def GetUsers():
+def get_users():
     """
     retrieve information about all users
     """
     users = dict()
-    for d in GetData("/sys/useradmin/", section="right-panel"):
+    for d in get_data("/sys/useradmin/", section="right-panel"):
         try:
             used_space, quota = d[3].text.strip().split("/")
 			# silly 0\xa0 UTF-character makes trouble since Seafile server 5.0.5
@@ -543,12 +600,12 @@ def GetUsers():
     return users
 
 
-def GetLibraries():
+def get_libaries():
     """
     retrieve information about all libraries
     """
     libraries = dict()
-    result = json.loads(GetAjax('/api/v2.1/admin/libraries?per_page=999999'))
+    result = json.loads(get_ajax('/api/v2.1/admin/libraries?per_page=999999'))
     for lib in result['repos']:
         library = Library(Name=lib['name'],\
                           ID=lib['id'],\
@@ -557,14 +614,14 @@ def GetLibraries():
     return libraries
 
 
-def GetLinks():
+def get_links():
     """
     get all publicly shared links
     Name = Owner = Creation = Count = URL = None
     """
     links = dict()
     # now verbose mode with bs4 Tags necessary for URL
-    for d in GetData("/sys/publinkadmin/", section="right-panel", mode="verbose"):
+    for d in get_data("/sys/publinkadmin/", section="right-panel", mode="verbose"):
         link = Link(Name=d[0][0], Owner=d[1][0], Creation=d[3].time["datetime"], Count=d[4][0])
         if link.Name.startswith("/"):
             link.Type = "directory"
@@ -577,15 +634,15 @@ def GetLinks():
     return links
 
 
-def GetGroups():
+def get_groups():
     """
     get groups and their members
     """
     groups = dict()
-    for d in GetData("/sys/groupadmin/", mode="verbose", section="right-panel"):
+    for d in get_data("/sys/groupadmin/", mode="verbose", section="right-panel"):
         group = Group(Name=d[0].text.strip(), Owner=d[1][0], Creation=d[2][0])
         group.ID = d[0].a["href"].strip("/").split("/")[-1]
-        soup = GetSoup(SEAFILE_URL + "/group/" + group.ID + "/members/")
+        soup = get_soup(SEAFILE_URL + "/group/" + group.ID + "/members/")
         group.Members = list()
         for u in soup.find_all("ul", attrs={"class": "user-list"}):
             for p in u.find_all("p"):
@@ -595,7 +652,7 @@ def GetGroups():
     return groups
 
 
-def Confirm(question):
+def confirm(question):
     """
     return true or false for confirmation of certain destructive tasks
     """
@@ -694,30 +751,30 @@ if len(args) > 0:
         if len(args) >= 2:
             objects = args[1].lower()
             if objects == "users":
-                users = GetUsers()
+                users = get_users()
                 for u in sorted(users.values(), cmp=lambda x, y: cmp(x.EMail, y.EMail)):
                     write("|".join((u.EMail, str(u.ID), u.Creation, "%s/%s MB" % (u.UsedSpace, u.Quota))))
             elif objects in ["repos", "libs", "libraries"]:
-                libs = GetLibraries()
+                libs = get_libaries()
                 for l in sorted(libs.values(), cmp=lambda x,y: cmp((x.Owner, x.Name), (y.Owner, y.Name))):
                     write("|".join((l.ID, l.Owner, l.Name)))
             elif objects == "links":
-                links = GetLinks()
+                links = get_links()
                 for l in sorted(links.values(), cmp=lambda x,y: cmp((x.Owner, x.Name) , (y.Owner, y.Name))):
                     write("|".join((l.Owner,l.Creation, l.URL, l.Count, l.Name)))
             elif objects == "groups":
-                groups = GetGroups()
+                groups = get_groups()
                 for g in sorted(groups.values(), cmp=lambda x,y: cmp(x.Name , y.Name)):
                     write("|".join((g.Name, g.ID, g.Owner, g.Creation, " ".join((g.Members)))))
             elif objects =="user":
                 if len(args) >= 3:
                     user = args[2]
-                    users = GetUsers()                  
+                    users = get_users()
                     if not user in users.keys():
                         ErrorExit("User %s does not exist." % (user))
-                    libs = GetLibraries()
-                    links = GetLinks()
-                    groups = GetGroups()
+                    libs = get_libaries()
+                    links = get_links()
+                    groups = get_groups()
                     users[user].CollectInfo(libs=libs, links=links, groups=groups)
                     users[user].PrintInfo()
                 else:
@@ -725,17 +782,17 @@ if len(args) > 0:
             elif objects =="group":
                 if len(args) >= 3:
                     group = args[2]
-                    groups = GetGroups()
+                    groups = get_groups()
                     if not group in groups:
                         ErrorExit("Group %s does not exist." % (group))
                     groups[group].PrintInfo()
                 else:
                     ErrorExit("Group needed to display group info.")
             elif objects == "all":
-                users = GetUsers()
-                libs = GetLibraries()
-                links = GetLinks()
-                groups = GetGroups()
+                users = get_users()
+                libs = get_libaries()
+                links = get_links()
+                groups = get_groups()
                 for u in sorted(users.values(), cmp=lambda x, y: cmp(x.EMail, y.EMail)):
                     u.CollectInfo(libs=libs, links=links, groups=groups)
                     u.PrintInfo()
@@ -752,41 +809,41 @@ if len(args) > 0:
                 objects = args[1].lower()
                 if objects == "user":
                     user = args[2]
-                    users = GetUsers()
+                    users = get_users()
                     if user in users:
-                        if Confirm("Delete user %s" % (user)):
+                        if confirm("Delete user %s" % (user)):
                             user = users[user]
-                            GetURL("%s/useradmin/remove/%s/" % (SEAFILE_URL, user.EMail), {})
+                            get_url("%s/useradmin/remove/%s/" % (SEAFILE_URL, user.EMail), {})
                             write("User %s deleted." % (user.EMail))
                     else:
                         ErrorExit("User %s does not exist." % (user))
                 elif objects in ["library", "lib", "repo"]:
                     lib = args[2]
-                    libs = GetLibraries()
+                    libs = get_libaries()
                     if lib in libs:
-                        if Confirm("Delete library %s" % (lib)):
-                            GetURL('%s/sys/seafadmin/delete/%s/' % (SEAFILE_URL, lib), {})
+                        if confirm("Delete library %s" % (lib)):
+                            get_url('%s/sys/seafadmin/delete/%s/' % (SEAFILE_URL, lib), {})
                             write("Library %s deleted." % (lib))
                     else:
                          ErrorExit("Library %s does not exist." % (lib))
                 elif objects == "link":
                     link = args[2]
-                    links = GetLinks()
+                    links = get_links()
                     if link.startswith("http"):
                         # reduce to ID
                         link = link.split("/")[-1]
                     if link in links:
-                        if Confirm("Delete link %s" % (link)):
-                            GetAjax('/sys/publink/remove/', {'t': link})
+                        if confirm("Delete link %s" % (link)):
+                            get_ajax('/sys/publink/remove/', {'t': link})
                             write("Link %s deleted." % (link))
                     else:
                         ErrorExit("Link %s does not exist." % (link))
                 elif objects == "group":
                     group = args[2]
-                    groups = GetGroups()
+                    groups = get_groups()
                     if group in groups:
-                        if Confirm("Delete group %s" % (group)):
-                            GetURL("%s/group/%s/remove/" % (SEAFILE_URL, groups[group].ID), {})
+                        if confirm("Delete group %s" % (group)):
+                            get_url("%s/group/%s/remove/" % (SEAFILE_URL, groups[group].ID), {})
                             write("Group %s deleted." % (group))
                     else:
                         ErrorExit("Group %s does not exist." % (group))
@@ -803,10 +860,10 @@ if len(args) > 0:
                 email = args[2]
                 password = args[3]
 
-                result = GetAjax('/useradmin/add/',
-                             data={'csrfmiddlwaretoken': session.cookies["csrftoken"], 'email': email,
+                result = get_ajax('/useradmin/add/',
+                                  data={'csrfmiddlwaretoken': session.cookies["csrftoken"], 'email': email,
                                    'password1': password, 'password2': password},
-                             referer="%s/sys/useradmin/" % (SEAFILE_URL))
+                                  referer="%s/sys/useradmin/" % (SEAFILE_URL))
                 result = json.loads(result)
                 if 'success' in result:
                     write('Created user %s.' % (email))
@@ -824,18 +881,18 @@ if len(args) > 0:
                 objects = args[1].lower()
                 if objects == "user":
                     user = args[2]
-                    users = GetUsers()
+                    users = get_users()
                     if user in users:
                         quota = args[3]
-                        if Confirm("Set quota for user %s to %s MB" % (user, quota)):
+                        if confirm("Set quota for user %s to %s MB" % (user, quota)):
                             user = users[user]
                             # check validity of given size
                             try: int(quota)
                             except: ErrorExit("%s is no valid quota size." % (quota))
                             write("Set quota for %s to %s MB." %(user.EMail, quota))
-                            GetAjax('/useradmin/%s/set_quota/' % (user.EMail),
-                                    data={'email': user.EMail, 'space_quota': quota},
-                                    referer="%s/useradmin/info/%s/" % (SEAFILE_URL, user.EMail))
+                            get_ajax('/useradmin/%s/set_quota/' % (user.EMail),
+                                     data={'email': user.EMail, 'space_quota': quota},
+                                     referer="%s/useradmin/info/%s/" % (SEAFILE_URL, user.EMail))
                     else:
                         ErrorExit("User %s does not exist." % (user))
                 elif objects == "domain":
@@ -852,7 +909,7 @@ if len(args) > 0:
                     # check validity of given size
                     try: int(quota)
                     except: ErrorExit("%s is no valid quota size." % (quota))
-                    users = GetUsers()
+                    users = get_users()
                     users_mod = list()
                     for user in users.values():
                         if mode == "normal":
@@ -868,12 +925,12 @@ if len(args) > 0:
                         question = {"normal": "Set quota for all users from %s to %s MB" % (", ".join(domains), quota),\
                                     "min": "Set quota for all users from %s to MINIMAL %s MB" % (", ".join(domains), quota),\
                                     "reverse": "Set quota for all users NOT from %s to %s MB" % (", ".join(domains), quota)}
-                        if Confirm(question[mode]):
+                        if confirm(question[mode]):
                             for user in users_mod:
                                 write("Set quota for %s to %s MB." %(user.EMail, quota))
-                                GetAjax('/useradmin/%s/set_quota/' % (user.EMail),
-                                    data={'email': user.EMail, 'space_quota': quota},
-                                    referer="%s/useradmin/info/%s/" % (SEAFILE_URL, user.EMail))
+                                get_ajax('/useradmin/%s/set_quota/' % (user.EMail),
+                                         data={'email': user.EMail, 'space_quota': quota},
+                                         referer="%s/useradmin/info/%s/" % (SEAFILE_URL, user.EMail))
             else:
                 ErrorExit(USAGE)
         else:
@@ -885,23 +942,23 @@ if len(args) > 0:
             if args[1].lower() in ["user", "group", "link"]:
                 search = args[2].lower()
                 if args[1].lower() == "user":
-                    users = GetUsers()
-                    links = GetLinks()
-                    groups = GetGroups()
-                    libs = GetLibraries()
+                    users = get_users()
+                    links = get_links()
+                    groups = get_groups()
+                    libs = get_libaries()
                     for user in users.values():
                         if search in user.EMail.lower():
                             user.CollectInfo(libs=libs, links=links, groups=groups)
                             user.PrintInfo()
                             
                 elif args[1].lower() == "group":
-                    groups = GetGroups()
+                    groups = get_groups()
                     for group in groups.values():
                         if search in group.Name.lower():
                             group.PrintInfo()
                             print()
                 elif args[1].lower() == "link":
-                    links = GetLinks()
+                    links = get_links()
                     for link in links.values():
                         if search in link.Name.lower() or\
                            search in link.URL:
@@ -923,7 +980,7 @@ if len(args) > 0:
                 if objects == "links":
                     invalid_links = list()
                     valid_links = list()
-                    links = GetLinks()
+                    links = get_links()
 
                     for l in links.values():
                         if not l.IsValid():
@@ -946,13 +1003,64 @@ if len(args) > 0:
                 objects = args[1].lower()
                 if objects == "links":
                     invalid_links = list()
-                    links = GetLinks()
+                    links = get_links()
                     for l in links.values():
                         if not l.IsValid():
                             invalid_links.append(l)
                     for i in invalid_links:
                         write("Deleting invalid link %s|%s|%s." % (i.URL, i.Owner, i.Name))
-                        GetAjax('/sys/publink/remove/', {'t': i.ID})
+                        get_ajax('/sys/publink/remove/', {'t': i.ID})
+            if args[1].lower() == 'garbage':
+                if len(args) >= 3:
+                    try:
+                        number_of_threads = int(args[2])
+                    except:
+                        ErrorExit(USAGE)
+
+                if len(args) >= 4:
+                    try:
+                        seafile_dir = sys.argv[3]
+                    except:
+                        ErrorExit(USAGE)
+
+                libraries = get_libaries()
+                number_of_libraries = len(libraries)
+
+                print('Stopping seahub and seafile')
+                subprocess.call(['systemctl', 'stop', 'seahub', 'seafile'])
+
+                time.sleep(10)
+
+                while True:
+                    processes = []
+                    for p in psutil.process_iter():
+                        processes.append(p.name())
+
+                    # only continue if absolutely no component of seafile is running anymore
+                    if not 'seaf-server' in processes and \
+                       not 'seafile-controller' in processes and \
+                       not 'file-server' in processes and \
+                       not 'wsgidav.server.run_server' in processes and \
+                       not 'ccnet-server' in processes:
+                        print('not running anymore')
+                        break
+                    else:
+                        print('waiting...')
+                        time.sleep(1)
+
+                # start worker threads
+                for thread in range(number_of_threads):
+                    worker = WorkerGarbage(queue_garbage)
+                    worker.start()
+
+                # put all libraries in queue to be processed by workers
+                for library in libraries.values():
+                    queue_garbage.put(library.ID)
+
+                queue_garbage.join()
+                subprocess.call(['systemctl', 'start', 'seafile'])
+                subprocess.call(['systemctl', 'start', 'seahub'])
+
             else:
                 ErrorExit(USAGE)
         else:
@@ -963,12 +1071,12 @@ if len(args) > 0:
         if len(args) >= 3:
             if args[1].lower() in ["user"]:
                 user = args[2]
-                users = GetUsers()
+                users = get_users()
                 if not user in users:
                     ErrorExit("User %s does not exist." % (user))
-                libs = GetLibraries()
-                links = GetLinks()
-                groups = GetGroups()
+                libs = get_libaries()
+                links = get_links()
+                groups = get_groups()
                 users[user].CollectInfo(libs=libs, links=links, groups=groups)
                 users[user].PrintReport()
         else:
@@ -977,5 +1085,5 @@ else:
     write("\n%s\n" % (USAGE))
 
 # log out finally to keep number of open sessions small
-GetURL(SEAFILE_URL + "/accounts/logout/")
+get_url(SEAFILE_URL + "/accounts/logout/")
 
