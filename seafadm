@@ -104,8 +104,9 @@ Arguments for check command:
 
 Arguments for clean command:
 
-    links             check validity of links and delete them if invalid
-
+    links                       check validity of links and delete them if invalid
+    garbage [threads] [path]    run seaf_gc threads for faster garbace collection
+                                [threads] defaults to 10 and [path] to /opt/seafile
 
 EXAMPLES:
 
@@ -464,6 +465,7 @@ class WorkerGarbage(threading.Thread):
                 args = shlex.split('{0} -c {1}/ccnet -d {1}/seafile-data -F {1}/conf {2}'.format(seaf_gc, seafile_dir, library))
                 env = {'LD_LIBRARY_PATH':'{0}/seafile-server-latest/seafile/lib:{0}/seafile-server-latest/seafile/lib64'.format(seafile_dir)}
 
+                print('Processing library:', library)
                 process = subprocess.Popen(args, env=env, cwd=seafile_dir)
                 (output, error) = process.communicate()
                 status = process.wait()
@@ -1029,6 +1031,7 @@ if len(args) > 0:
                 print('Stopping seahub and seafile')
                 subprocess.call(['systemctl', 'stop', 'seahub', 'seafile'])
 
+                # just wait some time to let services go down
                 time.sleep(10)
 
                 while True:
