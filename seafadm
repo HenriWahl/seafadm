@@ -1021,7 +1021,9 @@ if len(args) > 0:
 
                 if len(args) >= 4:
                     try:
-                        seafile_dir = sys.argv[3]
+                        seafile_dir = args[3]
+                        if not os.path.exists(seafile_dir):
+                            ErrorExit('{0} does not exist.'.format(seafile_dir))
                     except:
                         ErrorExit(USAGE)
 
