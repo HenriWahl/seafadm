@@ -577,15 +577,18 @@ def get_users():
     for d in get_data("/sys/useradmin/", section="right-panel"):
         try:
             used_space, quota = d[3].text.strip().split("/")
-			# silly 0\xa0 UTF-character makes trouble since Seafile server 5.0.5
-			# gets converted by codecs to '?' instead of space
-			# hopefully goes away with  Python3
+            # silly 0\xa0 UTF-character makes trouble since Seafile server 5.0.5
+            # gets converted by codecs to '?' instead of space
+            # hopefully goes away with  Python3
             used_space = codecs.encode(used_space, 'ascii', 'replace').replace('?', ' ')
             quota = codecs.encode(quota, 'ascii', 'replace').replace('?', ' ')
-            quota = quota.strip()          
-            quota, unit = quota.split(" ")
-            # calculate space in megabytes
-            quota = format(float(quota)*1024**SIZE_UNITS.index(unit.lower())/1024**2, ".1f")
+            quota = quota.strip()
+            if '--' in quota:
+                quota = "None"
+            else:
+                quota, unit = quota.split(" ")
+                # calculate space in megabytes
+                quota = format(float(quota)*1024**SIZE_UNITS.index(unit.lower())/1024**2, ".1f")
         except Exception, err:
             used_space = codecs.encode(d[3], 'ascii', 'replace').replace('?', ' ')
             quota = "None"
