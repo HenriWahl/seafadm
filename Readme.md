@@ -91,7 +91,10 @@ Arguments for check command:
 
 Arguments for clean command:
 
-    links             check validity of links and delete them if invalid
+    links                       check validity of links and delete them if invalid
+    garbage [threads] [path]    run seaf_gc threads for faster garbace collection
+                                [threads] defaults to 10 and [path] to /opt/seafile
+
 
 CONFIG FILE:
 ------------
