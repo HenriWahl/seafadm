@@ -1015,7 +1015,7 @@ if len(args) > 0:
                     for i in invalid_links:
                         write("Deleting invalid link %s|%s|%s." % (i.URL, i.Owner, i.Name))
                         get_ajax('/sys/publink/remove/', {'t': i.ID})
-            if args[1].lower() == 'garbage':
+            elif args[1].lower() == 'garbage':
                 if len(args) >= 3:
                     try:
                         number_of_threads = int(args[2])
