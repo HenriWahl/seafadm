@@ -90,7 +90,7 @@ Arguments for quota command:
 
 Arguments for search command:
 
-    user <srtring>    search in users for <string>
+    user <string>    search in users for <string>
     group <string>    search in groups for <string>
     link <string>     search in links for <string>
 
