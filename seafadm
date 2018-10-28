@@ -508,7 +508,10 @@ def get_ajax(url, data=None, referer=None):
         headers.update({"Referer" : referer})
     if not url.startswith('http'):
         url = '{0}{1}'.format(SEAFILE_URL, url)
-    response = session.post(url, data=data, headers=headers)
+    if data == None:
+        response = session.get(url, headers=headers)
+    else:
+        response = session.post(url, data=data, headers=headers)
 
     return response.text
 
