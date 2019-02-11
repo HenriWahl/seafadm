@@ -647,16 +647,18 @@ def get_groups():
     get groups and their members
     """
     groups = dict()
-    for d in get_data("/sys/groupadmin/", mode="verbose", section="right-panel"):
-        group = Group(Name=d[0].text.strip(), Owner=d[1][0], Creation=d[2][0])
-        group.ID = d[0].a["href"].strip("/").split("/")[-1]
-        soup = get_soup(SEAFILE_URL + "/group/" + group.ID + "/members/")
-        group.Members = list()
-        for u in soup.find_all("ul", attrs={"class": "user-list"}):
-            for p in u.find_all("p"):
-                group.Members.append(p.string)
-            group.Members.sort()
-        groups[group.Name] = group
+    result = json.loads(get_ajax('/api/v2.1/admin/groups'))
+    for group in result['groups']:
+        new_group = Group(Name=group['name'],
+                          Creation=group['created_at'],
+                          Owner=group['owner'],
+                          ID=str(group['id']))
+        # get members of group
+        new_group.Members = list()
+        result_members = json.loads(get_ajax('/api/v2.1/admin/groups/{0}/members'.format(new_group.ID)))
+        for member in result_members['members']:
+            new_group.Members.append(member['name'])
+        groups[new_group.ID]=new_group
     return groups
 
 
