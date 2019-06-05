@@ -1,9 +1,9 @@
-FROM python:2
+FROM python:3
 
 LABEL maintainer=h.wahl@ifw-dresden.de
 
-ARG HTTP_PROXY=''
+ARG PIP_PROXY_ARG=''
 
-RUN pip install --proxy $HTTP_PROXY beautifulsoup4 psutil requests
+RUN pip install $PIP_PROXY_ARG beautifulsoup4 psutil requests
 
 WORKDIR /seafadm

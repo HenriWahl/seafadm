@@ -18,14 +18,14 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
-from __future__ import print_function
+
 
 import codecs
-import ConfigParser
+import configparser
 import getopt
 import json
 import os.path
-import Queue
+import queue
 import psutil
 import requests
 import shlex
@@ -176,7 +176,8 @@ if "packages" in dir(requests):
 urllib3.disable_warnings()
 
 # less UTF-8-sensible print replacement
-out = codecs.getwriter('utf-8')(sys.stdout)
+# might not be necessary with Python 3
+# out = codecs.getwriter('utf-8')(sys.stdout)
 
 # default config parameters
 CONFIG_FILE = SEAFILE_URL = SEAFILE_USERNAME = SEAFILE_PASSWORD = SEAFILE_ADMIN = ""
@@ -187,7 +188,7 @@ SIZE_UNITS = ["bytes", "kb", "mb", "gb", "tb"]
 # no forcing as default
 FORCE = False
 
-queue_garbage = Queue.Queue(maxsize=0)
+queue_garbage = queue.Queue(maxsize=0)
 number_of_threads = 10
 number_of_libraries = 0
 seafile_dir = '/opt/seafile'
@@ -196,7 +197,8 @@ seaf_gc = seafile_dir + '/seafile-server-latest/seafile/bin/seafserv-gc'
 
 def write(string):
     # use write method of codecs StreamWriter class
-    out.write(string + "\n")
+    # out.write(string + "\n")
+    print(string)
 
 
 def ErrorExit(message="An error occured.", status=1):
@@ -500,7 +502,7 @@ def get_ajax(url, data=None, referer=None):
     """
     shortcut for Ajax request
     """
-    headers =  dict(session.headers.copy().items())
+    headers = dict(list(session.headers.copy().items()))
     headers.update({'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
                     'Accept': 'application/json, text/javascript, */*; q=0.01',
                     'X-Requested-With': 'XMLHttpRequest'})
@@ -549,7 +551,7 @@ def get_data(data_url, mode="simple", section=""):
         if not div == None:
             try:
                 table = div.find_all("table")[0]
-            except Exception, err:
+            except Exception as err:
                 pass
     if not table == None:
         for tr in table:
@@ -579,28 +581,33 @@ def get_users():
     users = dict()
     for d in get_data("/sys/useradmin/", section="right-panel"):
         try:
-            used_space, quota = d[3].text.strip().split("/")
+            used_space, quota = d[3].text.replace('\xa0', ' ').split("/")
             # silly 0\xa0 UTF-character makes trouble since Seafile server 5.0.5
             # gets converted by codecs to '?' instead of space
             # hopefully goes away with  Python3
-            used_space = codecs.encode(used_space, 'ascii', 'replace').replace('?', ' ')
-            quota = codecs.encode(quota, 'ascii', 'replace').replace('?', ' ')
+            ###used_space = codecs.encode(used_space, 'ascii', 'replace').replace('?', ' ')
+            used_space = used_space.strip()
+            ###quota = codecs.encode(quota, 'ascii', 'replace').replace('?', ' ')
+            ### quota = quota.replace('?', ' ').strip()
             quota = quota.strip()
             if '--' in quota:
-                quota = "None"
+                quota = 'None'
             else:
-                quota, unit = quota.split(" ")
+                quota, unit = quota.split(' ')
                 # calculate space in megabytes
                 quota = format(float(quota)*1024**SIZE_UNITS.index(unit.lower())/1024**2, ".1f")
-        except Exception, err:
-            used_space = codecs.encode(d[3], 'ascii', 'replace').replace('?', ' ')
-            quota = "None"
-        used_space = used_space.strip()
-        used_space, unit = used_space.split(" ")
+        except Exception as err:
+            ###used_space = codecs.encode(d[3], 'ascii', 'replace').replace('?', ' ')
+            ### used_space = d[3].text.replace('?', ' ').strip()
+            used_space = d[3].text.strip()
+            quota = 'None'
+        # used_space = used_space.strip()
+        # used_space, unit = used_space.split(" ")
+        used_space, unit = used_space.strip().split(' ')
         # calculate space in megabytes
         used_space = format(float(used_space)*1024**SIZE_UNITS.index(unit.lower())/1024**2, ".1f")
         creation = d[4].contents[0].strip().split("/")[0].strip()
-        user = User(EMail=str(d[1].a.text.strip()), Creation=creation, UsedSpace = used_space, Quota = quota)
+        user = User(EMail=str(d[1].a.text.strip()), Creation=creation, UsedSpace=used_space, Quota=quota)
         if isinstance(d[5], bs4.element.Tag):
             user.ID=d[5].a["data-url"].strip("/").split("/")[-1]
         users[user.EMail] = (user)
@@ -668,7 +675,7 @@ def confirm(question):
     """
     if FORCE == True:
         return True
-    elif raw_input(question + "? [y/n]: ").lower() in ["y", "yes"]:
+    elif input(question + "? [y/n]: ").lower() in ["y", "yes"]:
         return True
     else:
         return False
@@ -704,7 +711,7 @@ if not CONFIG_FILE == "":
 
 if not CONFIG_FILE == "":
     # instantiate Configparser
-    config = ConfigParser.ConfigParser()
+    config = configparser.ConfigParser()
     config.read(CONFIG_FILE)
     if config.has_section("seafadm"):
         if config.has_option("seafadm", "url") and SEAFILE_URL == "":
@@ -762,19 +769,19 @@ if len(args) > 0:
             objects = args[1].lower()
             if objects == "users":
                 users = get_users()
-                for u in sorted(users.values(), cmp=lambda x, y: cmp(x.EMail, y.EMail)):
+                for u in sorted(list(users.values()), cmp=lambda x, y: cmp(x.EMail, y.EMail)):
                     write("|".join((u.EMail, str(u.ID), u.Creation, "%s/%s MB" % (u.UsedSpace, u.Quota))))
             elif objects in ["repos", "libs", "libraries"]:
                 libs = get_libaries()
-                for l in sorted(libs.values(), cmp=lambda x,y: cmp((x.Owner, x.Name), (y.Owner, y.Name))):
+                for l in sorted(list(libs.values()), cmp=lambda x,y: cmp((x.Owner, x.Name), (y.Owner, y.Name))):
                     write("|".join((l.ID, l.Owner, l.Name)))
             elif objects == "links":
                 links = get_links()
-                for l in sorted(links.values(), cmp=lambda x,y: cmp((x.Owner, x.Name) , (y.Owner, y.Name))):
+                for l in sorted(list(links.values()), cmp=lambda x,y: cmp((x.Owner, x.Name) , (y.Owner, y.Name))):
                     write("|".join((l.Owner,l.Creation, l.URL, l.Count, l.Name)))
             elif objects == "groups":
                 groups = get_groups()
-                for g in sorted(groups.values(), cmp=lambda x,y: cmp(x.Name , y.Name)):
+                for g in sorted(list(groups.values()), cmp=lambda x,y: cmp(x.Name , y.Name)):
                     write("|".join((g.Name, g.ID, g.Owner, g.Creation, " ".join((g.Members)))))
             elif objects =="user":
                 if len(args) >= 3:
@@ -803,7 +810,7 @@ if len(args) > 0:
                 libs = get_libaries()
                 links = get_links()
                 groups = get_groups()
-                for u in sorted(users.values(), cmp=lambda x, y: cmp(x.EMail, y.EMail)):
+                for u in sorted(list(users.values()), cmp=lambda x, y: cmp(x.EMail, y.EMail)):
                     u.CollectInfo(libs=libs, links=links, groups=groups)
                     u.PrintInfo()
                     print()
