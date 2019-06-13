@@ -192,18 +192,13 @@ seafile_dir = '/opt/seafile'
 seaf_gc = seafile_dir + '/seafile-server-latest/seafile/bin/seafserv-gc'
 
 
-def write(string):
-    # use write method of codecs StreamWriter class
-    # out.write(string + '\n')
-    print(string)
-
 
 def error_exit(message='An error occurred.', status=1):
     """
     exit with given error message
     allow prefix, especially for spitting out section of configuration errors
     """
-    write('\n' + message + '\n')
+    print('\n' + message + '\n')
     sys.exit(status)
 
 
@@ -217,7 +212,7 @@ class User:
     """
     store information about a user
     """
-    EMail = Creation = Quota = UsedSpace = Libs = Groups = Links = ID = Shares = None
+    mail = creation = quota = used_space = libs = groups = links = id = shases = None
 
     def __init__(self, **kwds):
         # fill properties with given values
@@ -228,104 +223,104 @@ class User:
         """
         pretty prints user details
         """
-        write('User:\t%s' % self.EMail)
-        write('ID:\t\t%s' % self.ID)
-        write('Quota:\t%s' % ('%s/%s MB' % (self.UsedSpace, self.Quota)))
-        write('Date:\t%s' % self.Creation)
-        if len(self.Libs) > 0:
+        print('User:\t%s' % self.mail)
+        print('ID:\t\t%s' % self.id)
+        print('Quota:\t%s' % ('%s/%s MB' % (self.used_space, self.quota)))
+        print('Date:\t%s' % self.creation)
+        if len(self.libs) > 0:
             category = 'Libs:'
-            for l in self.Libs:
-                write('%s\t%s' % (category, ' | '.join((l.ID, l.Name))))
+            for l in self.libs:
+                print('%s\t%s' % (category, ' | '.join((l.ID, l.name))))
                 category = ''
-        if len(self.Groups) > 0:
+        if len(self.groups) > 0:
             category = 'Groups:'
-            for g in self.Groups:
-                if g.Owner == self.EMail:
-                    write('%s\t%s %s' % (category, g.Name, '(Owner)'))
+            for g in self.groups:
+                if g.owner == self.mail:
+                    print('%s\t%s %s' % (category, g.name, '(Owner)'))
                 else:
-                    write('%s\t%s' % (category, g.Name))
+                    print('%s\t%s' % (category, g.name))
                 category = ''
-        if len(self.Links) > 0:
+        if len(self.links) > 0:
             category = 'Links:'
-            for l in self.Links:
-                write('%s\t%s' % (category, ' | '.join((l.URL, l.Creation, l.Name))))
+            for l in self.links:
+                print('%s\t%s' % (category, ' | '.join((l.URL, l.Creation, l.name))))
                 category = ''
-        if len(self.Shares) > 0:
+        if len(self.shares) > 0:
             category = 'Shares:'
-            for s in self.Shares:
-                if s.Type == 'user':
-                    write('%s\t%s by user %s' % (category, s.Name, s.Owner))
+            for s in self.shares:
+                if s.type == 'user':
+                    print('%s\t%s by user %s' % (category, s.name, s.owner))
                 else:
-                    write('%s\t%s by group %s' % (category, s.Name, s.Group))
+                    print('%s\t%s by group %s' % (category, s.name, s.group))
                 category = ''
 
     def print_report(self):
         """
         pretty prints user details in HTML
         """
-        write('<html><head></head><body>')
-        write('<h2>Seafile report for %s</h2>' % self.EMail)
-        write('<p>Registered since: %s</p>' % self.Creation)
-        write('<p>Used space: %s</p>' % ('%s MB of %s MB\n' % (self.UsedSpace, self.Quota)))
-        if len(self.Libs) > 0:
-            write('<h3>Libraries:</h3>')
-            for l in self.Libs:
-                write('%s<br>' % l.Name)
-            write('<p>Manage your libraries at <a href=%s/#my-libs/>%s/#my-libs/</a></p>' % (SEAFILE_URL, SEAFILE_URL))
-        if len(self.Groups) > 0:
-            write('<h3>Groups:</h3>')
-            for g in self.Groups:
-                if g.Owner == self.EMail:
-                    write('%s %s<br>' % (g.Name, '(Owner)'))
+        print('<html><head></head><body>')
+        print('<h2>Seafile report for %s</h2>' % self.mail)
+        print('<p>Registered since: %s</p>' % self.creation)
+        print('<p>Used space: %s</p>' % ('%s MB of %s MB\n' % (self.used_space, self.quota)))
+        if len(self.libs) > 0:
+            print('<h3>Libraries:</h3>')
+            for l in self.libs:
+                print('%s<br>' % l.name)
+            print('<p>Manage your libraries at <a href=%s/#my-libs/>%s/#my-libs/</a></p>' % (SEAFILE_URL, SEAFILE_URL))
+        if len(self.groups) > 0:
+            print('<h3>Groups:</h3>')
+            for g in self.groups:
+                if g.owner == self.mail:
+                    print('%s %s<br>' % (g.name, '(Owner)'))
                 else:
-                    write('%s<br>' % g.Name)
-            write('<p>Manage your groups at <a href=%s/#groups/>%s/#groups/</a></p>' % (SEAFILE_URL, SEAFILE_URL))
-        if len(self.Links) > 0:
-            write('<h3>Links you share:</h3>')
-            for l in self.Links:
-                write('<a href=%s>%s</a> %s<br>' % (l.URL, l.URL, l.Name))
+                    print('%s<br>' % g.name)
+            print('<p>Manage your groups at <a href=%s/#groups/>%s/#groups/</a></p>' % (SEAFILE_URL, SEAFILE_URL))
+        if len(self.links) > 0:
+            print('<h3>Links you share:</h3>')
+            for l in self.links:
+                print('<a href=%s>%s</a> %s<br>' % (l.URL, l.URL, l.name))
             print()
-            write('<p>Manage your links at <a href=%s/#share-admin-share-links/>%s/#share-admin-share-links/</a></p>' %
+            print('<p>Manage your links at <a href=%s/#share-admin-share-links/>%s/#share-admin-share-links/</a></p>' %
                   (SEAFILE_URL, SEAFILE_URL))
-        if len(self.Shares) > 0:
-            write('<h3>Libraries shared with you:</h3>')
-            for s in self.Shares:
-                if s.Type == 'user':
-                    write('%s by user %s<br>' % (s.Name, s.Owner))
+        if len(self.shares) > 0:
+            print('<h3>Libraries shared with you:</h3>')
+            for s in self.shares:
+                if s.type == 'user':
+                    print('%s by user %s<br>' % (s.name, s.owner))
                 else:
-                    write('%s by group %s<br>' % (s.Name, s.Group))
+                    print('%s by group %s<br>' % (s.name, s.group))
             print()
-            write('<p>Manage your shares at <a href=%s/#share-admin-libs/>%s/#share-admin-libs/</a></p>' %
+            print('<p>Manage your shares at <a href=%s/#share-admin-libs/>%s/#share-admin-libs/</a></p>' %
                   (SEAFILE_URL, SEAFILE_URL))
         if SEAFILE_ADMIN != '':
-            write('<p>If you want to delete your Seafile account at %s please contact <a href=mailto:%s>%s</a>.</p>' %
+            print('<p>If you want to delete your Seafile account at %s please contact <a href=mailto:%s>%s</a>.</p>' %
                   (SEAFILE_URL, SEAFILE_ADMIN, SEAFILE_ADMIN))
-        write('</body></html>')
+        print('</body></html>')
 
     def collect_info(self, libs, links, groups):
         """
         sort user information
         """
-        self.Libs = list()
+        self.libs = list()
         for l in libs.values():
-            if self.EMail == l.Owner:
-                self.Libs.append(l)
-        self.Libs.sort(key=lambda x: x.Name)
-        self.Groups = list()
+            if self.mail == l.owner:
+                self.libs.append(l)
+        self.libs.sort(key=lambda x: x.name)
+        self.groups = list()
         for g in groups.values():
-            if self.EMail in g.Members:
-                self.Groups.append(g)
-        self.Groups.sort(key=lambda x: x.Name)
-        self.Links = list()
+            if self.mail in g.members:
+                self.groups.append(g)
+        self.groups.sort(key=lambda x: x.name)
+        self.links = list()
         for l in links.values():
-            if self.EMail in l.Owner:
-                self.Links.append(l)
-        self.Links.sort(key=lambda x: x.Name)
+            if self.mail in l.owner:
+                self.links.append(l)
+        self.links.sort(key=lambda x: x.name)
         # get shares given for user
-        self.Shares = self.get_shares()
-        for g in self.Groups:
+        self.shares = self.get_shares()
+        for g in self.groups:
             for s in g.get_shares():
-                self.Shares.append(s)
+                self.shares.append(s)
         return True
 
     def get_shares(self):
@@ -333,8 +328,8 @@ class User:
         get shares a user gets from other users
         """
         shares = list()
-        for s in get_data('/useradmin/info/%s/' % self.EMail, section='Shared'):
-            share = Share(Name=s[1], Owner=s[2], Type='user')
+        for s in get_data('/useradmin/info/%s/' % self.mail, section='Shared'):
+            share = Share(name=s[1], owner=s[2], type='user')
             shares.append(share)
         return shares
 
@@ -343,7 +338,7 @@ class Library:
     """
     a single library
     """
-    Name = ID = Owner = None
+    name = id = owner = None
 
     def __init__(self, **kwds):
         # fill properties with given values
@@ -351,11 +346,11 @@ class Library:
             self.__dict__[k] = kwds[k]
 
 
-class Link(object):
+class Link:
     """
     publicly available link
     """
-    Name = Owner = Creation = Count = Type = URL = ID = Validity = None
+    name = owner = creation = count = type = url = id = validity = None
 
     def __init__(self, **kwds):
         # fill properties with given values
@@ -366,37 +361,37 @@ class Link(object):
         """
         pretty prints link details
         """
-        write('Link:\t%s' % self.Name)
-        write('ID:\t%s' % self.ID)
-        write('Date:\t%s' % self.Creation)
-        write('Owner:\t%s' % self.Owner)
-        write('Type:\t%s' % self.Type)
-        write('URL:\t%s' % self.URL)
+        print('Link:\t%s' % self.name)
+        print('ID:\t%s' % self.id)
+        print('Date:\t%s' % self.creation)
+        print('Owner:\t%s' % self.owner)
+        print('Type:\t%s' % self.type)
+        print('URL:\t%s' % self.url)
 
     def is_valid(self):
         """
         check validity of URL
         """
-        self.Validity = True
+        self.validity = True
         try:
             # add '/' to avoid HTTP status codes 301 and thus double number of requests
-            if not self.URL.endswith('/'):
-                self.URL += '/'
-            soup = get_soup(self.URL)
+            if not self.url.endswith('/'):
+                self.url += '/'
+            soup = get_soup(self.url)
             # text-panel contains error message - if no error then no text-panel div
             for e in soup.find_all(attrs={'class': 'text-panel'}):
                 # if something found link is invalid
-                self.Validity = False
+                self.validity = False
         except requests.exceptions.HTTPError:
-            self.Validity = False
-        return self.Validity
+            self.validity = False
+        return self.validity
 
 
 class Group:
     """
     group and its members
     """
-    Name = ID = Owner = Creation = Members = None
+    name = id = owner = creation = members = None
 
     def __init__(self, **kwds):
         # fill properties with given values
@@ -407,14 +402,14 @@ class Group:
         """
         pretty prints group details
         """
-        write('Group:\t%s' % self.Name)
-        write('ID:\t%s' % self.ID)
-        write('Date:\t%s' % self.Creation)
-        write('Owner:\t%s' % self.Owner)
-        if len(self.Members) > 0:
+        print('Group:\t%s' % self.name)
+        print('ID:\t%s' % self.id)
+        print('Date:\t%s' % self.creation)
+        print('Owner:\t%s' % self.owner)
+        if len(self.members) > 0:
             category = 'Member:'
-            for l in self.Members:
-                write('%s\t%s' % (category, l))
+            for l in self.members:
+                print('%s\t%s' % (category, l))
                 category = ''
 
     def get_shares(self):
@@ -422,8 +417,8 @@ class Group:
         get shares a group gets from users
         """
         shares = list()
-        for s in get_data('/group/%s/' % self.ID, section='grp-repos'):
-            share = Share(Name=s[1], Owner=s[2], Type='group', Group=self.Name)
+        for s in get_data('/group/%s/' % self.id, section='grp-repos'):
+            share = Share(name=s[1], owner=s[2], type='group', group=self.name)
             shares.append(share)
         return shares
 
@@ -432,7 +427,7 @@ class Share:
     """
     a single share
     """
-    Name = Owner = Type = Group = None
+    name = owner = type = group = None
 
     def __init__(self, **kwds):
         # fill properties with given values
@@ -493,7 +488,7 @@ def get_url(url, data=None):
     shortcut for URL request
     """
     if data is not None:
-        data['csrfmiddlewaretoken'] = session.cookies['csrftoken']
+        data['csrfmiddlewaretoken'] = csrf_token
         data['submit'] = 'Submit'
         response = session.post(url, data)
     else:
@@ -607,10 +602,10 @@ def get_users():
         # calculate space in megabytes
         used_space = format(float(used_space) * 1024 ** SIZE_UNITS.index(unit.lower()) / 1024 ** 2, '.1f')
         creation = d[4].contents[0].strip().split('/')[0].strip()
-        user = User(EMail=str(d[1].a.text.strip()), Creation=creation, UsedSpace=used_space, Quota=quota)
+        user = User(mail=str(d[1].a.text.strip()), creation=creation, used_space=used_space, quota=quota)
         if isinstance(d[5], bs4.element.Tag):
-            user.ID = d[5].a['data-url'].strip('/').split('/')[-1]
-        users[user.EMail] = user
+            user.id = d[5].a['data-url'].strip('/').split('/')[-1]
+        users[user.mail] = user
 
     return users
 
@@ -622,30 +617,29 @@ def get_libaries():
     libraries = dict()
     result = json.loads(get_ajax('/api/v2.1/admin/libraries?per_page=999999'))
     for lib in result['repos']:
-        library = Library(Name=lib['name'],
-                          ID=lib['id'],
-                          Owner=lib['owner'])
-        libraries[library.ID] = library
+        library = Library(name=lib['name'],
+                          id=lib['id'],
+                          owner=lib['owner'])
+        libraries[library.id] = library
     return libraries
 
 
 def get_links():
     """
     get all publicly shared links
-    Name = Owner = Creation = Count = URL = None
     """
     links = dict()
     # now verbose mode with bs4 Tags necessary for URL
     for d in get_data('/sys/publinkadmin/', section='right-panel', mode='verbose'):
-        link = Link(Name=d[0][0], Owner=d[1][0], Creation=d[3].time['datetime'], Count=d[4][0])
-        if link.Name.startswith('/'):
-            link.Type = 'directory'
+        link = Link(name=d[0][0], owner=d[1][0], creation=d[3].time['datetime'], count=d[4][0])
+        if link.name.startswith('/'):
+            link.type = 'directory'
         else:
-            link.Type = 'file'
+            link.type = 'file'
         if isinstance(d[5], bs4.element.Tag):
-            link.ID = d[5].a['data-token'].split('=')[-1]
-            link.URL = '/'.join((SEAFILE_URL, link.Type[0], link.ID))
-        links[link.ID] = link
+            link.id = d[5].a['data-token'].split('=')[-1]
+            link.url = '/'.join((SEAFILE_URL, link.type[0], link.id))
+        links[link.id] = link
     return links
 
 
@@ -656,16 +650,16 @@ def get_groups():
     groups = dict()
     result = json.loads(get_ajax('/api/v2.1/admin/groups'))
     for group in result['groups']:
-        new_group = Group(Name=group['name'],
-                          Creation=group['created_at'],
-                          Owner=group['owner'],
-                          ID=str(group['id']))
+        new_group = Group(name=group['name'],
+                          creation=group['created_at'],
+                          owner=group['owner'],
+                          id=str(group['id']))
         # get members of group
-        new_group.Members = list()
-        result_members = json.loads(get_ajax('/api/v2.1/admin/groups/{0}/members'.format(new_group.ID)))
+        new_group.members = list()
+        result_members = json.loads(get_ajax('/api/v2.1/admin/groups/{0}/members'.format(new_group.id)))
         for member in result_members['members']:
-            new_group.Members.append(member['name'])
-        groups[new_group.ID] = new_group
+            new_group.members.append(member['name'])
+        groups[new_group.id] = new_group
     return groups
 
 
@@ -742,7 +736,11 @@ session.headers.update({'User-Agent': 'Mozilla/5.0', 'Referer': SEAFILE_URL})
 # get cookies
 session.get(SEAFILE_URL + '/accounts/login/')
 # add X-CSRFToken to requests
-session.headers.update({'X-CSRFToken': session.cookies['csrftoken']})
+if 'csrftoken' in session.cookies:  # up to Seafile 6.2
+    csrf_token = session.cookies['csrftoken']
+elif 'sfcsrftoken' in session.cookies:  # since Seafile 6.3?
+    csrf_token = session.cookies['sfcsrftoken']
+session.headers.update({'X-CSRFToken': csrf_token})
 
 # get URL parts for form field 'next'
 next_url = list()
@@ -756,7 +754,7 @@ next_url = '/' + '/'.join(next_url)
 
 data = {'login': SEAFILE_USERNAME,
         'password': SEAFILE_PASSWORD,
-        'csrfmiddlewaretoken': session.cookies['csrftoken'],
+        'csrfmiddlewaretoken': csrf_token,
         'next': next_url,
         'submit': 'Submit',
         'remember_me': 'off'}
@@ -773,20 +771,20 @@ if len(args) > 0:
             objects = args[1].lower()
             if objects == 'users':
                 users = get_users()
-                for u in sorted(list(users.values()), key=lambda x: x.EMail):
-                    write('|'.join((u.EMail, str(u.ID), u.Creation, '%s/%s MB' % (u.UsedSpace, u.Quota))))
+                for u in sorted(list(users.values()), key=lambda x: x.mail):
+                    print('|'.join((u.mail, str(u.id), u.creation, '%s/%s MB' % (u.used_space, u.quota))))
             elif objects in ['repos', 'libs', 'libraries']:
                 libs = get_libaries()
-                for l in sorted(list(libs.values()), key=lambda x: (x.Owner, x.Name)):
-                    write('|'.join((l.ID, l.Owner, l.Name)))
+                for l in sorted(list(libs.values()), key=lambda x: (x.owner, x.name)):
+                    print('|'.join((l.id, l.owner, l.name)))
             elif objects == 'links':
                 links = get_links()
-                for l in sorted(list(links.values()), key=lambda x: (x.Owner, x.Name)):
-                    write('|'.join((l.Owner, l.Creation, l.URL, l.Count, l.Name)))
+                for l in sorted(list(links.values()), key=lambda x: (x.owner, x.name)):
+                    print('|'.join((l.owner, l.creation, l.url, l.count, l.name)))
             elif objects == 'groups':
                 groups = get_groups()
-                for g in sorted(list(groups.values()), key=lambda x: x.Name):
-                    write('|'.join((g.Name, g.ID, g.Owner, g.Creation, ' '.join(g.Members))))
+                for g in sorted(list(groups.values()), key=lambda x: x.name):
+                    print('|'.join((g.name, g.id, g.owner, g.creation, ' '.join(g.members))))
             elif objects == 'user':
                 if len(args) >= 3:
                     user = args[2]
@@ -814,7 +812,7 @@ if len(args) > 0:
                 libs = get_libaries()
                 links = get_links()
                 groups = get_groups()
-                for u in sorted(list(users.values()), key=lambda x: x.EMail):
+                for u in sorted(list(users.values()), key=lambda x: x.mail):
                     u.collect_info(libs=libs, links=links, groups=groups)
                     u.print_info()
                     print()
@@ -834,8 +832,8 @@ if len(args) > 0:
                     if user in users:
                         if confirm('Delete user %s' % user):
                             user = users[user]
-                            get_url('%s/useradmin/remove/%s/' % (SEAFILE_URL, user.EMail), {})
-                            write('User %s deleted.' % user.EMail)
+                            get_url('%s/useradmin/remove/%s/' % (SEAFILE_URL, user.mail), {})
+                            print('User %s deleted.' % user.mail)
                     else:
                         error_exit('User %s does not exist.' % user)
                 elif objects in ['library', 'lib', 'repo']:
@@ -844,7 +842,7 @@ if len(args) > 0:
                     if lib in libs:
                         if confirm('Delete library %s' % lib):
                             get_url('%s/sys/seafadmin/delete/%s/' % (SEAFILE_URL, lib), {})
-                            write('Library %s deleted.' % lib)
+                            print('Library %s deleted.' % lib)
                     else:
                         error_exit('Library %s does not exist.' % lib)
                 elif objects == 'link':
@@ -856,7 +854,7 @@ if len(args) > 0:
                     if link in links:
                         if confirm('Delete link %s' % link):
                             get_ajax('/sys/publink/remove/', {'t': link})
-                            write('Link %s deleted.' % link)
+                            print('Link %s deleted.' % link)
                     else:
                         error_exit('Link %s does not exist.' % link)
                 elif objects == 'group':
@@ -864,8 +862,8 @@ if len(args) > 0:
                     groups = get_groups()
                     if group in groups:
                         if confirm('Delete group %s' % group):
-                            get_url('%s/group/%s/remove/' % (SEAFILE_URL, groups[group].ID), {})
-                            write('Group %s deleted.' % group)
+                            get_url('%s/group/%s/remove/' % (SEAFILE_URL, groups[group].id), {})
+                            print('Group %s deleted.' % group)
                     else:
                         error_exit('Group %s does not exist.' % group)
             else:
@@ -881,18 +879,18 @@ if len(args) > 0:
                 password = args[3]
 
                 result = get_ajax('/useradmin/add/',
-                                  data={'csrfmiddlwaretoken': session.cookies['csrftoken'], 'email': email,
+                                  data={'csrfmiddlwaretoken': csrf_token, 'email': email,
                                         'password1': password, 'password2': password},
                                   referer='%s/sys/useradmin/' % SEAFILE_URL)
                 result = json.loads(result)
                 if 'success' in result:
-                    write('Created user %s.' % email)
+                    print('Created user %s.' % email)
                 elif 'error' in result:
                     try:
                         error = bs4.BeautifulSoup(result['error'], features='lxml').text
                     except:
                         error = bs4.BeautifulSoup(result['error'], features='html.parser').text
-                    write(error)
+                    print(error)
         else:
             error_exit(USAGE)
 
@@ -913,10 +911,10 @@ if len(args) > 0:
                                 int(quota)
                             except ValueError:
                                 error_exit('%s is no valid quota size.' % quota)
-                            write('Set quota for %s to %s MB.' % (user.EMail, quota))
-                            get_ajax('/useradmin/%s/set_quota/' % user.EMail,
-                                     data={'email': user.EMail, 'space_quota': quota},
-                                     referer='%s/useradmin/info/%s/' % (SEAFILE_URL, user.EMail))
+                            print('Set quota for %s to %s MB.' % (user.mail, quota))
+                            get_ajax('/useradmin/%s/set_quota/' % user.mail,
+                                     data={'email': user.mail, 'space_quota': quota},
+                                     referer='%s/useradmin/info/%s/' % (SEAFILE_URL, user.mail))
                     else:
                         error_exit('User %s does not exist.' % user)
                 elif objects == 'domain':
@@ -939,13 +937,13 @@ if len(args) > 0:
                     users_mod = list()
                     for user in users.values():
                         if mode == 'normal':
-                            if user.EMail.split('@')[1] in domains:
+                            if user.mail.split('@')[1] in domains:
                                 users_mod.append(user)
                         elif mode == 'min':
-                            if user.EMail.split('@')[1] in domains and int(quota) > int(user.Quota):
+                            if user.mail.split('@')[1] in domains and int(quota) > int(user.quota):
                                 users_mod.append(user)
                         else:
-                            if not user.EMail.split('@')[1] in domains:
+                            if not user.mail.split('@')[1] in domains:
                                 users_mod.append(user)
                     if len(users_mod) > 0:
                         question = {'normal': 'Set quota for all users from %s to %s MB' % (', '.join(domains), quota),
@@ -955,10 +953,10 @@ if len(args) > 0:
                                         ', '.join(domains), quota)}
                         if confirm(question[mode]):
                             for user in users_mod:
-                                write('Set quota for %s to %s MB.' % (user.EMail, quota))
-                                get_ajax('/useradmin/%s/set_quota/' % user.EMail,
-                                         data={'email': user.EMail, 'space_quota': quota},
-                                         referer='%s/useradmin/info/%s/' % (SEAFILE_URL, user.EMail))
+                                print('Set quota for %s to %s MB.' % (user.mail, quota))
+                                get_ajax('/useradmin/%s/set_quota/' % user.mail,
+                                         data={'email': user.mail, 'space_quota': quota},
+                                         referer='%s/useradmin/info/%s/' % (SEAFILE_URL, user.mail))
             else:
                 error_exit(USAGE)
         else:
@@ -975,21 +973,21 @@ if len(args) > 0:
                     groups = get_groups()
                     libs = get_libaries()
                     for user in users.values():
-                        if search in user.EMail.lower():
+                        if search in user.mail.lower():
                             user.collect_info(libs=libs, links=links, groups=groups)
                             user.print_info()
 
                 elif args[1].lower() == 'group':
                     groups = get_groups()
                     for group in groups.values():
-                        if search in group.Name.lower():
+                        if search in group.name.lower():
                             group.print_info()
                             print()
                 elif args[1].lower() == 'link':
                     links = get_links()
                     for link in links.values():
-                        if search in link.Name.lower() or \
-                                search in link.URL:
+                        if search in link.name.lower() or \
+                                search in link.url:
                             link.print_info()
 
             else:
@@ -1015,10 +1013,10 @@ if len(args) > 0:
                             invalid_links.append(l)
                         else:
                             valid_links.append(l)
-                    for v in sorted(valid_links, key=lambda x: (x.Owner, x.Name)):
-                        write('|'.join(('VALID', v.URL, v.Owner, v.Name)))
-                    for i in sorted(invalid_links, key=lambda x: (x.Owner, x.Name)):
-                        write('|'.join(('INVALID', i.URL, i.Owner, i.Name)))
+                    for v in sorted(valid_links, key=lambda x: (x.owner, x.name)):
+                        print('|'.join(('VALID', v.url, v.owner, v.name)))
+                    for i in sorted(invalid_links, key=lambda x: (x.owner, x.name)):
+                        print('|'.join(('INVALID', i.url, i.owner, i.name)))
             else:
                 error_exit(USAGE)
         else:
@@ -1036,8 +1034,8 @@ if len(args) > 0:
                         if not l.is_valid():
                             invalid_links.append(l)
                     for i in invalid_links:
-                        write('Deleting invalid link %s|%s|%s.' % (i.URL, i.Owner, i.Name))
-                        get_ajax('/sys/publink/remove/', {'t': i.ID})
+                        print('Deleting invalid link %s|%s|%s.' % (i.url, i.owner, i.name))
+                        get_ajax('/sys/publink/remove/', {'t': i.id})
             elif args[1].lower() == 'garbage':
                 if len(args) >= 3:
                     try:
@@ -1086,7 +1084,7 @@ if len(args) > 0:
 
                 # put all libraries in queue to be processed by workers
                 for library in libraries.values():
-                    queue_garbage.put(library.ID)
+                    queue_garbage.put(library.id)
 
                 queue_garbage.join()
                 subprocess.call(['systemctl', 'start', 'seafile'])
@@ -1113,7 +1111,7 @@ if len(args) > 0:
         else:
             error_exit(USAGE)
 else:
-    write('\n%s\n' % USAGE)
+    print('\n%s\n' % USAGE)
 
 # log out finally to keep number of open sessions small
 get_url(SEAFILE_URL + '/accounts/logout/')
