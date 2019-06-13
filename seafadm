@@ -232,7 +232,7 @@ class User(object):
         pretty prints user details
         """
         write("User:\t%s" % (self.EMail))
-        write("ID:\t%s" % (self.ID))
+        write("ID:\t\t%s" % (self.ID))
         write("Quota:\t%s" % (("%s/%s MB" % (self.UsedSpace, self.Quota))))
         write("Date:\t%s" % (self.Creation))
         if len(self.Libs) > 0:
@@ -312,17 +312,17 @@ class User(object):
         for l in libs.values():
             if self.EMail == l.Owner:
                 self.Libs.append(l)
-        self.Libs.sort(cmp=lambda x,y: cmp(x.Name , y.Name))
+        self.Libs.sort(key=lambda x: x.Name)
         self.Groups = list()
         for g in groups.values():
             if self.EMail in g.Members:
                 self.Groups.append(g)
-        self.Groups.sort(cmp=lambda x,y: cmp(x.Name , y.Name))
+        self.Groups.sort(key=lambda x: x.Name)
         self.Links = list()
         for l in links.values():
             if self.EMail in l.Owner:
                 self.Links.append(l)
-        self.Links.sort(cmp=lambda x,y: cmp(x.Name , y.Name))
+        self.Links.sort(key=lambda x: x.Name)
         # get shares given for user
         self.Shares = self.GetShares()
         for g in self.Groups:
@@ -441,9 +441,9 @@ class Share(object):
 
 
 class WorkerGarbage(threading.Thread):
-    '''
+    """
     Actual worker for garbage cleaning
-    '''
+    """
     def __init__(self, queue_garbage):
         threading.Thread.__init__(self, name='GarbageCollector')
         self.setDaemon(1)
@@ -451,11 +451,11 @@ class WorkerGarbage(threading.Thread):
 
 
     def run(self):
-        '''
+        """
         As long as there are libraries in queue (or number of remaining libraries is > 0) take libraries out of queue and
         process them
         :return:
-        '''
+        """
         # needed global values
         global number_of_libraries, seafile_dir
 
@@ -507,7 +507,7 @@ def get_ajax(url, data=None, referer=None):
                     'Accept': 'application/json, text/javascript, */*; q=0.01',
                     'X-Requested-With': 'XMLHttpRequest'})
     if referer != None:
-        headers.update({"Referer" : referer})
+        headers.update({'Referer' : referer})
     if not url.startswith('http'):
         url = '{0}{1}'.format(SEAFILE_URL, url)
     if data == None:
@@ -524,33 +524,33 @@ def get_soup(url, data=None):
     """
     url_data = get_url(url, data)
     try:
-        soup = bs4.BeautifulSoup(url_data, 'lxml')
+        soup = bs4.BeautifulSoup(url_data, features='lxml')
     except:
-        soup = bs4.BeautifulSoup(url_data, 'html.parser')
+        soup = bs4.BeautifulSoup(url_data, features='html.parser')
 
     return soup
 
 
-def get_data(data_url, mode="simple", section=""):
+def get_data(data_url, mode='simple', section=''):
     """
     get data of given URL, e.g. users, needing desired section of page
     """
     rows = list()
     table = None
     # sub-url as data-url gets anti-pagination-oage-request added
-    soup = get_soup(SEAFILE_URL + data_url + "?per_page=%s" % (PER_PAGE))
+    soup = get_soup(SEAFILE_URL + data_url + '?per_page=%s' % (PER_PAGE))
     # sections are headed by h3 headers or li list items and thus identifyable
-    h3s = soup.find_all("h3")
+    h3s = soup.find_all('h3')
     for h3 in h3s:
         if h3.string == section:
-            table = h3.find_next_sibling("table")
+            table = h3.find_next_sibling('table')
             break
     # some pages show information in tables inside of certain divs which should be named by id
     if table == None:
         div = soup.find(id=section)
         if not div == None:
             try:
-                table = div.find_all("table")[0]
+                table = div.find_all('table')[0]
             except Exception as err:
                 pass
     if not table == None:
@@ -558,12 +558,12 @@ def get_data(data_url, mode="simple", section=""):
             # there are some empty passages in HTML which have no .find_all() method
             if isinstance(tr, bs4.element.Tag):
                 columns = list()
-                for td in tr.find_all("td"):
+                for td in tr.find_all('td'):
                     if td.string != None:
-                        if mode == "simple":
-                            data = td.string.replace("\n","").strip()
-                        elif mode == "verbose":
-                            string = td.string.replace("\n","").strip()
+                        if mode == 'simple':
+                            data = td.string.replace('\n','').strip()
+                        elif mode == 'verbose':
+                            string = td.string.replace('\n','').strip()
                             soup = td
                             data = [string, soup]
                     else:
@@ -579,9 +579,9 @@ def get_users():
     retrieve information about all users
     """
     users = dict()
-    for d in get_data("/sys/useradmin/", section="right-panel"):
+    for d in get_data('/sys/useradmin/', section='right-panel'):
         try:
-            used_space, quota = d[3].text.replace('\xa0', ' ').split("/")
+            used_space, quota = d[3].text.replace('\xa0', ' ').split('/')
             # silly 0\xa0 UTF-character makes trouble since Seafile server 5.0.5
             # gets converted by codecs to '?' instead of space
             # hopefully goes away with  Python3
@@ -595,21 +595,21 @@ def get_users():
             else:
                 quota, unit = quota.split(' ')
                 # calculate space in megabytes
-                quota = format(float(quota)*1024**SIZE_UNITS.index(unit.lower())/1024**2, ".1f")
+                quota = format(float(quota)*1024**SIZE_UNITS.index(unit.lower())/1024**2, '.1f')
         except Exception as err:
             ###used_space = codecs.encode(d[3], 'ascii', 'replace').replace('?', ' ')
             ### used_space = d[3].text.replace('?', ' ').strip()
             used_space = d[3].text.strip()
             quota = 'None'
         # used_space = used_space.strip()
-        # used_space, unit = used_space.split(" ")
+        # used_space, unit = used_space.split(' ')
         used_space, unit = used_space.strip().split(' ')
         # calculate space in megabytes
-        used_space = format(float(used_space)*1024**SIZE_UNITS.index(unit.lower())/1024**2, ".1f")
-        creation = d[4].contents[0].strip().split("/")[0].strip()
+        used_space = format(float(used_space)*1024**SIZE_UNITS.index(unit.lower())/1024**2, '.1f')
+        creation = d[4].contents[0].strip().split('/')[0].strip()
         user = User(EMail=str(d[1].a.text.strip()), Creation=creation, UsedSpace=used_space, Quota=quota)
         if isinstance(d[5], bs4.element.Tag):
-            user.ID=d[5].a["data-url"].strip("/").split("/")[-1]
+            user.ID=d[5].a['data-url'].strip('/').split('/')[-1]
         users[user.EMail] = (user)
 
     return users
@@ -636,15 +636,15 @@ def get_links():
     """
     links = dict()
     # now verbose mode with bs4 Tags necessary for URL
-    for d in get_data("/sys/publinkadmin/", section="right-panel", mode="verbose"):
-        link = Link(Name=d[0][0], Owner=d[1][0], Creation=d[3].time["datetime"], Count=d[4][0])
-        if link.Name.startswith("/"):
-            link.Type = "directory"
+    for d in get_data('/sys/publinkadmin/', section='right-panel', mode='verbose'):
+        link = Link(Name=d[0][0], Owner=d[1][0], Creation=d[3].time['datetime'], Count=d[4][0])
+        if link.Name.startswith('/'):
+            link.Type = 'directory'
         else:
-            link.Type = "file"
+            link.Type = 'file'
         if isinstance(d[5], bs4.element.Tag):
-            link.ID = d[5].a["data-token"].split("=")[-1]
-            link.URL = "/".join((SEAFILE_URL, link.Type[0], link.ID))
+            link.ID = d[5].a['data-token'].split('=')[-1]
+            link.URL = '/'.join((SEAFILE_URL, link.Type[0], link.ID))
         links[link.ID] = link
     return links
 
@@ -675,7 +675,7 @@ def confirm(question):
     """
     if FORCE == True:
         return True
-    elif input(question + "? [y/n]: ").lower() in ["y", "yes"]:
+    elif input(question + '? [y/n]: ').lower() in ['y', 'yes']:
         return True
     else:
         return False
@@ -683,134 +683,134 @@ def confirm(question):
 
 # get configuration
 try:
-    opts, args = getopt.gnu_getopt(sys.argv[1:], "a:c:u:p:U:Ff", ["admin=", "config=", "username=", "password=", "url=", "force"])
+    opts, args = getopt.gnu_getopt(sys.argv[1:], 'a:c:u:p:U:Ff', ['admin=', 'config=', 'username=', 'password=', 'url=', 'force'])
     for opt, arg in opts:
-        if opt in ("-a", "--admin"):
+        if opt in ('-a', '--admin'):
             SEAFILE_ADMIN = arg
-        if opt in ("-c", "--config"):
+        if opt in ('-c', '--config'):
             CONFIG_FILE = arg
-        if opt in ("-u", "--username"):
+        if opt in ('-u', '--username'):
             SEAFILE_USERNAME = arg
-        if opt in ("-p", "--password"):
+        if opt in ('-p', '--password'):
             SEAFILE_PASSWORD = arg
-        if opt in ("-U", "--url"):
+        if opt in ('-U', '--url'):
             SEAFILE_URL = arg
-        if opt in ("-F", "--force"):
+        if opt in ('-F', '--force'):
             FORCE = True
 except:
     ErrorExit(USAGE)
 
 
-if not CONFIG_FILE == "":
+if not CONFIG_FILE == '':
     if os.path.exists(CONFIG_FILE):
         if not (os.path.isfile(CONFIG_FILE) or \
                     os.path.islink(CONFIG_FILE)):
-            ErrorExit("Configuration file %s is no file or link." % (CONFIG_FILE))
+            ErrorExit('Configuration file %s is no file or link.' % (CONFIG_FILE))
     else:
-        ErrorExit("Configuration file %s does not exist." % (CONFIG_FILE))
+        ErrorExit('Configuration file %s does not exist.' % (CONFIG_FILE))
 
-if not CONFIG_FILE == "":
+if not CONFIG_FILE == '':
     # instantiate Configparser
     config = configparser.ConfigParser()
     config.read(CONFIG_FILE)
-    if config.has_section("seafadm"):
-        if config.has_option("seafadm", "url") and SEAFILE_URL == "":
-            SEAFILE_URL = config.get("seafadm", "url")
-        if config.has_option("seafadm", "username") and SEAFILE_USERNAME == "":
-            SEAFILE_USERNAME = config.get("seafadm", "username")
-        if config.has_option("seafadm", "password") and SEAFILE_PASSWORD == "":
-            SEAFILE_PASSWORD = config.get("seafadm", "password")
-        if config.has_option("seafadm", "admin") and SEAFILE_ADMIN == "":
-            SEAFILE_ADMIN = config.get("seafadm", "admin")
+    if config.has_section('seafadm'):
+        if config.has_option('seafadm', 'url') and SEAFILE_URL == '':
+            SEAFILE_URL = config.get('seafadm', 'url')
+        if config.has_option('seafadm', 'username') and SEAFILE_USERNAME == '':
+            SEAFILE_USERNAME = config.get('seafadm', 'username')
+        if config.has_option('seafadm', 'password') and SEAFILE_PASSWORD == '':
+            SEAFILE_PASSWORD = config.get('seafadm', 'password')
+        if config.has_option('seafadm', 'admin') and SEAFILE_ADMIN == '':
+            SEAFILE_ADMIN = config.get('seafadm', 'admin')
     else:
-        ErrorExit("Section [seafadm] is missing in config file %s." % CONFIG_FILE)
+        ErrorExit('Section [seafadm] is missing in config file %s.' % CONFIG_FILE)
 
 # only continue if all needed parameters are configured
-if not ( SEAFILE_URL != "" and SEAFILE_USERNAME != "" and SEAFILE_PASSWORD != "" ) :
-    ErrorExit("Something is missing. Please provide URL, username and password of Seafile server.")
+if not ( SEAFILE_URL != '' and SEAFILE_USERNAME != '' and SEAFILE_PASSWORD != '' ) :
+    ErrorExit('Something is missing. Please provide URL, username and password of Seafile server.')
 
 # new session with cookies and so on
 session = requests.Session()
 # do not verify SSL/TLS cerificate
 session.verify = False
 # extra headers
-session.headers.update({"User-Agent": "Mozilla/5.0", "Referer": SEAFILE_URL})
+session.headers.update({'User-Agent': 'Mozilla/5.0', 'Referer': SEAFILE_URL})
 # get cookies
-session.get(SEAFILE_URL + "/accounts/login/")
+session.get(SEAFILE_URL + '/accounts/login/')
 # add X-CSRFToken to requests
-session.headers.update({"X-CSRFToken": session.cookies["csrftoken"]})
+session.headers.update({'X-CSRFToken': session.cookies['csrftoken']})
 
-# get URL parts for form field "next"
+# get URL parts for form field 'next'
 next_url = list()
-for i in SEAFILE_URL.split("://")[1].split("/"):
-    if len(i)!=0:
+for i in SEAFILE_URL.split('://')[1].split('/'):
+    if len(i) != 0:
         next_url.append(i)
 # kick out fqdn
 next_url.pop(0)
-next_url.extend(("home", "my"))
-next_url = "/" + "/".join(next_url)
+next_url.extend(('home', 'my'))
+next_url = '/' + '/'.join(next_url)
 
 data = {'login': SEAFILE_USERNAME,
         'password': SEAFILE_PASSWORD,
-        'csrfmiddlewaretoken': session.cookies['csrftoken'],\
-        'next': next_url,\
-        'submit': 'Submit',\
+        'csrfmiddlewaretoken': session.cookies['csrftoken'],
+        'next': next_url,
+        'submit': 'Submit',
         'remember_me': 'off'}
 
 # effectively login
-session.post(SEAFILE_URL + "/accounts/login/", data)
+session.post(SEAFILE_URL + '/accounts/login/', data)
 
 # check args for seafadm
 if len(args) > 0:
     # when only 1 arg is given args is a string no list?
-    if args[0].lower() in ["list", "show"]:
-         # show everything
+    if args[0].lower() in ['list', 'show']:
+        # show everything
         if len(args) >= 2:
             objects = args[1].lower()
-            if objects == "users":
+            if objects == 'users':
                 users = get_users()
-                for u in sorted(list(users.values()), cmp=lambda x, y: cmp(x.EMail, y.EMail)):
-                    write("|".join((u.EMail, str(u.ID), u.Creation, "%s/%s MB" % (u.UsedSpace, u.Quota))))
-            elif objects in ["repos", "libs", "libraries"]:
+                for u in sorted(list(users.values()), key=lambda x: x.EMail):
+                    write('|'.join((u.EMail, str(u.ID), u.Creation, '%s/%s MB' % (u.UsedSpace, u.Quota))))
+            elif objects in ['repos', 'libs', 'libraries']:
                 libs = get_libaries()
-                for l in sorted(list(libs.values()), cmp=lambda x,y: cmp((x.Owner, x.Name), (y.Owner, y.Name))):
-                    write("|".join((l.ID, l.Owner, l.Name)))
-            elif objects == "links":
+                for l in sorted(list(libs.values()), key=lambda x: (x.Owner, x.Name)):
+                    write('|'.join((l.ID, l.Owner, l.Name)))
+            elif objects == 'links':
                 links = get_links()
-                for l in sorted(list(links.values()), cmp=lambda x,y: cmp((x.Owner, x.Name) , (y.Owner, y.Name))):
-                    write("|".join((l.Owner,l.Creation, l.URL, l.Count, l.Name)))
-            elif objects == "groups":
+                for l in sorted(list(links.values()), key=lambda x: (x.Owner, x.Name)):
+                    write('|'.join((l.Owner,l.Creation, l.URL, l.Count, l.Name)))
+            elif objects == 'groups':
                 groups = get_groups()
-                for g in sorted(list(groups.values()), cmp=lambda x,y: cmp(x.Name , y.Name)):
-                    write("|".join((g.Name, g.ID, g.Owner, g.Creation, " ".join((g.Members)))))
-            elif objects =="user":
+                for g in sorted(list(groups.values()), key=lambda x: (x.Name)):
+                    write('|'.join((g.Name, g.ID, g.Owner, g.Creation, ' '.join((g.Members)))))
+            elif objects == 'user':
                 if len(args) >= 3:
                     user = args[2]
                     users = get_users()
                     if not user in users.keys():
-                        ErrorExit("User %s does not exist." % (user))
+                        ErrorExit('User %s does not exist.' % (user))
                     libs = get_libaries()
                     links = get_links()
                     groups = get_groups()
                     users[user].CollectInfo(libs=libs, links=links, groups=groups)
                     users[user].PrintInfo()
                 else:
-                    ErrorExit("User needed to display user info.")
-            elif objects =="group":
+                    ErrorExit('User needed to display user info.')
+            elif objects =='group':
                 if len(args) >= 3:
                     group = args[2]
                     groups = get_groups()
                     if not group in groups:
-                        ErrorExit("Group %s does not exist." % (group))
+                        ErrorExit('Group %s does not exist.' % (group))
                     groups[group].PrintInfo()
                 else:
-                    ErrorExit("Group needed to display group info.")
-            elif objects == "all":
+                    ErrorExit('Group needed to display group info.')
+            elif objects == 'all':
                 users = get_users()
                 libs = get_libaries()
                 links = get_links()
                 groups = get_groups()
-                for u in sorted(list(users.values()), cmp=lambda x, y: cmp(x.EMail, y.EMail)):
+                for u in sorted(list(users.values()), key=lambda x: x.EMail):
                     u.CollectInfo(libs=libs, links=links, groups=groups)
                     u.PrintInfo()
                     print()
@@ -819,146 +819,149 @@ if len(args) > 0:
         else:
             ErrorExit(USAGE)
 
-    elif args[0].lower() == "delete":
+    elif args[0].lower() == 'delete':
         # user, group, link or repo
         if len(args) >= 3:
-            if args[1].lower() in ["user", "library", "lib", "repo", "link", "group", "clean"]:
+            if args[1].lower() in ['user', 'library', 'lib', 'repo', 'link', 'group', 'clean']:
                 objects = args[1].lower()
-                if objects == "user":
+                if objects == 'user':
                     user = args[2]
                     users = get_users()
                     if user in users:
-                        if confirm("Delete user %s" % (user)):
+                        if confirm('Delete user %s' % (user)):
                             user = users[user]
-                            get_url("%s/useradmin/remove/%s/" % (SEAFILE_URL, user.EMail), {})
-                            write("User %s deleted." % (user.EMail))
+                            get_url('%s/useradmin/remove/%s/' % (SEAFILE_URL, user.EMail), {})
+                            write('User %s deleted.' % (user.EMail))
                     else:
-                        ErrorExit("User %s does not exist." % (user))
-                elif objects in ["library", "lib", "repo"]:
+                        ErrorExit('User %s does not exist.' % (user))
+                elif objects in ['library', 'lib', 'repo']:
                     lib = args[2]
                     libs = get_libaries()
                     if lib in libs:
-                        if confirm("Delete library %s" % (lib)):
+                        if confirm('Delete library %s' % (lib)):
                             get_url('%s/sys/seafadmin/delete/%s/' % (SEAFILE_URL, lib), {})
-                            write("Library %s deleted." % (lib))
+                            write('Library %s deleted.' % (lib))
                     else:
-                         ErrorExit("Library %s does not exist." % (lib))
-                elif objects == "link":
+                         ErrorExit('Library %s does not exist.' % (lib))
+                elif objects == 'link':
                     link = args[2]
                     links = get_links()
-                    if link.startswith("http"):
+                    if link.startswith('http'):
                         # reduce to ID
-                        link = link.split("/")[-1]
+                        link = link.split('/')[-1]
                     if link in links:
-                        if confirm("Delete link %s" % (link)):
+                        if confirm('Delete link %s' % (link)):
                             get_ajax('/sys/publink/remove/', {'t': link})
-                            write("Link %s deleted." % (link))
+                            write('Link %s deleted.' % (link))
                     else:
-                        ErrorExit("Link %s does not exist." % (link))
-                elif objects == "group":
+                        ErrorExit('Link %s does not exist.' % (link))
+                elif objects == 'group':
                     group = args[2]
                     groups = get_groups()
                     if group in groups:
-                        if confirm("Delete group %s" % (group)):
-                            get_url("%s/group/%s/remove/" % (SEAFILE_URL, groups[group].ID), {})
-                            write("Group %s deleted." % (group))
+                        if confirm('Delete group %s' % (group)):
+                            get_url('%s/group/%s/remove/' % (SEAFILE_URL, groups[group].ID), {})
+                            write('Group %s deleted.' % (group))
                     else:
-                        ErrorExit("Group %s does not exist." % (group))
+                        ErrorExit('Group %s does not exist.' % (group))
             else:
                 ErrorExit(USAGE)
         else:
             ErrorExit(USAGE)
 
 
-    elif args[0].lower() == "add":
+    elif args[0].lower() == 'add':
         # link and user
         if len(args) >= 4:
-            if args[1].lower() in ["user"]:
+            if args[1].lower() in ['user']:
                 email = args[2]
                 password = args[3]
 
                 result = get_ajax('/useradmin/add/',
-                                  data={'csrfmiddlwaretoken': session.cookies["csrftoken"], 'email': email,
+                                  data={'csrfmiddlwaretoken': session.cookies['csrftoken'], 'email': email,
                                    'password1': password, 'password2': password},
-                                  referer="%s/sys/useradmin/" % (SEAFILE_URL))
+                                  referer='%s/sys/useradmin/' % (SEAFILE_URL))
                 result = json.loads(result)
                 if 'success' in result:
                     write('Created user %s.' % (email))
                 elif 'error' in result:
-                    error = bs4.BeautifulSoup(result['error']).text
+                    try:
+                        error = bs4.BeautifulSoup(result['error'], features='lxml').text
+                    except:
+                        error = bs4.BeautifulSoup(result['error'], features='html.parser').text
                     write(error)
         else:
             ErrorExit(USAGE)
 
 
-    elif args[0].lower() == "quota":
+    elif args[0].lower() == 'quota':
         # domain or user
         if len(args) >= 4:
-            if args[1].lower() in ["user", "domain"]:
+            if args[1].lower() in ['user', 'domain']:
                 objects = args[1].lower()
-                if objects == "user":
+                if objects == 'user':
                     user = args[2]
                     users = get_users()
                     if user in users:
                         quota = args[3]
-                        if confirm("Set quota for user %s to %s MB" % (user, quota)):
+                        if confirm('Set quota for user %s to %s MB' % (user, quota)):
                             user = users[user]
                             # check validity of given size
                             try: int(quota)
-                            except: ErrorExit("%s is no valid quota size." % (quota))
-                            write("Set quota for %s to %s MB." %(user.EMail, quota))
+                            except: ErrorExit('%s is no valid quota size.' % (quota))
+                            write('Set quota for %s to %s MB.' %(user.EMail, quota))
                             get_ajax('/useradmin/%s/set_quota/' % (user.EMail),
                                      data={'email': user.EMail, 'space_quota': quota},
-                                     referer="%s/useradmin/info/%s/" % (SEAFILE_URL, user.EMail))
+                                     referer='%s/useradmin/info/%s/' % (SEAFILE_URL, user.EMail))
                     else:
-                        ErrorExit("User %s does not exist." % (user))
-                elif objects == "domain":
-                    mode = "normal"
-                    if args[2].lower() == "not" and len(args) >= 5:
+                        ErrorExit('User %s does not exist.' % (user))
+                elif objects == 'domain':
+                    mode = 'normal'
+                    if args[2].lower() == 'not' and len(args) >= 5:
                         domains = args[3:-1]
-                        mode = "reverse"
-                    elif args[2].lower() == "min" and len(args) >= 5:
+                        mode = 'reverse'
+                    elif args[2].lower() == 'min' and len(args) >= 5:
                         domains = args[3:-1]
-                        mode = "min"
+                        mode = 'min'
                     else:
                         domains = args[2:-1]
                     quota = args[-1]
                     # check validity of given size
                     try: int(quota)
-                    except: ErrorExit("%s is no valid quota size." % (quota))
+                    except: ErrorExit('%s is no valid quota size.' % (quota))
                     users = get_users()
                     users_mod = list()
                     for user in users.values():
-                        if mode == "normal":
-                            if user.EMail.split("@")[1] in domains:
+                        if mode == 'normal':
+                            if user.EMail.split('@')[1] in domains:
                                 users_mod.append(user)
-                        elif mode == "min":
-                            if user.EMail.split("@")[1] in domains and int(quota) > int(user.Quota):
+                        elif mode == 'min':
+                            if user.EMail.split('@')[1] in domains and int(quota) > int(user.Quota):
                                 users_mod.append(user)
                         else:
-                            if not user.EMail.split("@")[1] in domains:
+                            if not user.EMail.split('@')[1] in domains:
                                 users_mod.append(user)
                     if len(users_mod) > 0:
-                        question = {"normal": "Set quota for all users from %s to %s MB" % (", ".join(domains), quota),\
-                                    "min": "Set quota for all users from %s to MINIMAL %s MB" % (", ".join(domains), quota),\
-                                    "reverse": "Set quota for all users NOT from %s to %s MB" % (", ".join(domains), quota)}
+                        question = {'normal': 'Set quota for all users from %s to %s MB' % (', '.join(domains), quota),\
+                                    'min': 'Set quota for all users from %s to MINIMAL %s MB' % (', '.join(domains), quota),\
+                                    'reverse': 'Set quota for all users NOT from %s to %s MB' % (', '.join(domains), quota)}
                         if confirm(question[mode]):
                             for user in users_mod:
-                                write("Set quota for %s to %s MB." %(user.EMail, quota))
+                                write('Set quota for %s to %s MB.' %(user.EMail, quota))
                                 get_ajax('/useradmin/%s/set_quota/' % (user.EMail),
                                          data={'email': user.EMail, 'space_quota': quota},
-                                         referer="%s/useradmin/info/%s/" % (SEAFILE_URL, user.EMail))
+                                         referer='%s/useradmin/info/%s/' % (SEAFILE_URL, user.EMail))
             else:
                 ErrorExit(USAGE)
         else:
             ErrorExit(USAGE)
 
-    elif args[0].lower() == "search":
+    elif args[0].lower() == 'search':
         # search user, link or group
         if len(args) >= 3:
-            if args[1].lower() in ["user", "group", "link"]:
+            if args[1].lower() in ['user', 'group', 'link']:
                 search = args[2].lower()
-                if args[1].lower() == "user":
+                if args[1].lower() == 'user':
                     users = get_users()
                     links = get_links()
                     groups = get_groups()
@@ -968,13 +971,13 @@ if len(args) > 0:
                             user.CollectInfo(libs=libs, links=links, groups=groups)
                             user.PrintInfo()
                             
-                elif args[1].lower() == "group":
+                elif args[1].lower() == 'group':
                     groups = get_groups()
                     for group in groups.values():
                         if search in group.Name.lower():
                             group.PrintInfo()
                             print()
-                elif args[1].lower() == "link":
+                elif args[1].lower() == 'link':
                     links = get_links()
                     for link in links.values():
                         if search in link.Name.lower() or\
@@ -986,15 +989,15 @@ if len(args) > 0:
         else:
             ErrorExit(USAGE)
 
-    elif args[0].lower() == "check":
+    elif args[0].lower() == 'check':
         # link and user
         if len(args) >= 2:
-            if args[1].lower() in ["link", "links"]:
+            if args[1].lower() in ['link', 'links']:
                 objects = args[1].lower()
-                if objects == "link" and len(args)>=2:
+                if objects == 'link' and len(args) >= 2:
                     pass
-
-                if objects == "links":
+                    # something is somehow missing?
+                if objects == 'links':
                     invalid_links = list()
                     valid_links = list()
                     links = get_links()
@@ -1004,28 +1007,28 @@ if len(args) > 0:
                             invalid_links.append(l)
                         else:
                             valid_links.append(l)
-                    for v in sorted(valid_links, cmp=lambda x,y: cmp((x.Owner, x.Name), (y.Owner, y.Name))):
-                        write("|".join(("VALID", v.URL, v.Owner, v.Name)))
-                    for i in sorted(invalid_links, cmp=lambda x,y: cmp((x.Owner, x.Name), (y.Owner, y.Name))):
-                        write("|".join(("INVALID", i.URL, i.Owner, i.Name)))
+                    for v in sorted(valid_links, key=lambda x: (x.Owner, x.Name)):
+                        write('|'.join(('VALID', v.URL, v.Owner, v.Name)))
+                    for i in sorted(invalid_links, key=lambda x: (x.Owner, x.Name)):
+                        write('|'.join(('INVALID', i.URL, i.Owner, i.Name)))
             else:
                 ErrorExit(USAGE)
         else:
             ErrorExit(USAGE)
 
-    elif args[0].lower() == "clean":
+    elif args[0].lower() == 'clean':
         # link and user
         if len(args) >= 2:
-            if args[1].lower() == "links":
+            if args[1].lower() == 'links':
                 objects = args[1].lower()
-                if objects == "links":
+                if objects == 'links':
                     invalid_links = list()
                     links = get_links()
                     for l in links.values():
                         if not l.IsValid():
                             invalid_links.append(l)
                     for i in invalid_links:
-                        write("Deleting invalid link %s|%s|%s." % (i.URL, i.Owner, i.Name))
+                        write('Deleting invalid link %s|%s|%s.' % (i.URL, i.Owner, i.Name))
                         get_ajax('/sys/publink/remove/', {'t': i.ID})
             elif args[1].lower() == 'garbage':
                 if len(args) >= 3:
@@ -1086,14 +1089,14 @@ if len(args) > 0:
         else:
             ErrorExit(USAGE)
 
-    elif args[0].lower() == "report":
+    elif args[0].lower() == 'report':
         # link and user
         if len(args) >= 3:
-            if args[1].lower() in ["user"]:
+            if args[1].lower() in ['user']:
                 user = args[2]
                 users = get_users()
                 if not user in users:
-                    ErrorExit("User %s does not exist." % (user))
+                    ErrorExit('User %s does not exist.' % (user))
                 libs = get_libaries()
                 links = get_links()
                 groups = get_groups()
@@ -1102,8 +1105,8 @@ if len(args) > 0:
         else:
             ErrorExit(USAGE)
 else:
-    write("\n%s\n" % (USAGE))
+    write('\n%s\n' % (USAGE))
 
 # log out finally to keep number of open sessions small
-get_url(SEAFILE_URL + "/accounts/logout/")
+get_url(SEAFILE_URL + '/accounts/logout/')
 
