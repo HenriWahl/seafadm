@@ -1055,7 +1055,7 @@ if len(args) > 0:
                 number_of_libraries = len(libraries)
 
                 print('Stopping seahub and seafile')
-                subprocess.call(['systemctl', 'stop', 'seahub', 'seafile'])
+                subprocess.call(['systemctl', 'stop', 'seafile'])
 
                 # just wait some time to let services go down
                 time.sleep(10)
@@ -1067,10 +1067,9 @@ if len(args) > 0:
 
                     # only continue if absolutely no component of seafile is running anymore
                     if 'seaf-server' not in processes and \
-                            'seafile-controller' not in processes and \
-                            'file-server' not in processes and \
-                            'wsgidav.server.run_server' not in processes and \
-                            'ccnet-server' not in processes:
+                       'seafile-controller' not in processes and \
+                       'file-server' not in processes and \
+                       'ccnet-server' not in processes:
                         print('not running anymore')
                         break
                     else:
@@ -1088,7 +1087,6 @@ if len(args) > 0:
 
                 queue_garbage.join()
                 subprocess.call(['systemctl', 'start', 'seafile'])
-                subprocess.call(['systemctl', 'start', 'seahub'])
 
             else:
                 error_exit(USAGE)
