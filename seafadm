@@ -18,6 +18,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
 
+import bs4
 import configparser
 import getopt
 import json
@@ -177,7 +178,7 @@ urllib3.disable_warnings()
 # out = codecs.getwriter('utf-8')(sys.stdout)
 
 # default config parameters
-CONFIG_FILE = SEAFILE_URL = SEAFILE_USERNAME = SEAFILE_PASSWORD = SEAFILE_ADMIN = ''
+CONFIG_FILE = SEAFILE_URL = SEAFILE_USERNAME = SEAFILE_PASSWORD = SEAFILE_ADMIN = SEAFILE_START = SEAFILE_STOP = ''
 # items to be shown per page to avoid pagination - 100000 should be enough
 PER_PAGE = 100000
 # needed for quota calculation
@@ -188,9 +189,9 @@ FORCE = False
 queue_garbage = queue.Queue(maxsize=0)
 number_of_threads = 10
 number_of_libraries = 0
-seafile_dir = '/opt/seafile'
-seaf_gc = seafile_dir + '/seafile-server-latest/seafile/bin/seafserv-gc'
 
+SEAFILE_DIR = '/opt/seafile'
+SEAF_GC = SEAFILE_DIR + '/seafile-server-latest/seafile/bin/seafserv-gc'
 
 
 def error_exit(message='An error occurred.', status=1):
@@ -200,12 +201,6 @@ def error_exit(message='An error occurred.', status=1):
     """
     print('\n' + message + '\n')
     sys.exit(status)
-
-
-try:
-    import bs4
-except ImportError:
-    error_exit('No BeautifulSoup module bs4 found. Please install BeautifulSoup 4')
 
 
 class User:
@@ -442,7 +437,6 @@ class WorkerGarbage(threading.Thread):
 
     def __init__(self, queue_garbage):
         threading.Thread.__init__(self, name='GarbageCollector')
-        # self.setDaemon(1)
         self.daemon = True
         self.queue_garbage = queue_garbage
 
@@ -453,20 +447,20 @@ class WorkerGarbage(threading.Thread):
         :return:
         """
         # needed global values
-        global number_of_libraries, seafile_dir
+        global number_of_libraries, SEAFILE_DIR
 
         while number_of_libraries > 0:
             try:
                 # get library from queue
                 library = self.queue_garbage.get()
                 # prepare arguments and environment
-                args = shlex.split('{0} -c {1}/ccnet -d {1}/seafile-data -F {1}/conf {2}'.format(seaf_gc,
-                                                                                                 seafile_dir, library))
+                args = shlex.split('{0} -c {1}/ccnet -d {1}/seafile-data -F {1}/conf {2}'.format(SEAF_GC,
+                                                                                                 SEAFILE_DIR, library))
                 env = {'LD_LIBRARY_PATH': '{0}/seafile-server-latest/seafile/lib:'
-                                          '{0}/seafile-server-latest/seafile/lib64'.format(seafile_dir)}
+                                          '{0}/seafile-server-latest/seafile/lib64'.format(SEAFILE_DIR)}
 
                 print('Processing library:', library)
-                process = subprocess.Popen(args, env=env, cwd=seafile_dir)
+                process = subprocess.Popen(args, env=env, cwd=SEAFILE_DIR)
                 (output, error) = process.communicate()
                 status = process.wait()
                 print('Processed library:', library)
@@ -682,6 +676,8 @@ try:
                                                                   'username=',
                                                                   'password=',
                                                                   'url=',
+                                                                  'start=',
+                                                                  'stop=',
                                                                   'force'])
     for opt, arg in opts:
         if opt in ('-a', '--admin'):
@@ -694,6 +690,10 @@ try:
             SEAFILE_PASSWORD = arg
         if opt in ('-U', '--url'):
             SEAFILE_URL = arg
+        if opt in ('--start'):
+            SEAFILE_START = arg
+        if opt in ('--stop'):
+            SEAFILE_STOP = arg
         if opt in ('-F', '--force'):
             FORCE = True
 except getopt.GetoptError:
@@ -720,8 +720,18 @@ if not CONFIG_FILE == '':
             SEAFILE_PASSWORD = config.get('seafadm', 'password')
         if config.has_option('seafadm', 'admin') and SEAFILE_ADMIN == '':
             SEAFILE_ADMIN = config.get('seafadm', 'admin')
+        if config.has_option('seafadm', 'start') and SEAFILE_START == '':
+            SEAFILE_ADMIN = config.get('seafadm', 'start')
+        if config.has_option('seafadm', 'stop') and SEAFILE_STOP == '':
+            SEAFILE_ADMIN = config.get('seafadm', 'stop')
     else:
         error_exit('Section [seafadm] is missing in config file %s.' % CONFIG_FILE)
+
+# set start and stop command to default
+if SEAFILE_START == '':
+    SEAFILE_START = 'systemctl start seafile'
+if SEAFILE_STOP == '':
+    SEAFILE_STOP = 'systemctl stop seafile'
 
 # only continue if all needed parameters are configured
 if not (SEAFILE_URL != '' and SEAFILE_USERNAME != '' and SEAFILE_PASSWORD != ''):
@@ -1045,17 +1055,18 @@ if len(args) > 0:
 
                 if len(args) >= 4:
                     try:
-                        seafile_dir = args[3]
-                        if not os.path.exists(seafile_dir):
-                            error_exit('{0} does not exist.'.format(seafile_dir))
+                        SEAFILE_DIR = args[3]
+                        if not os.path.exists(SEAFILE_DIR):
+                            error_exit('{0} does not exist.'.format(SEAFILE_DIR))
                     except:
                         error_exit(USAGE)
 
                 libraries = get_libaries()
                 number_of_libraries = len(libraries)
 
-                print('Stopping seahub and seafile')
-                subprocess.call(['systemctl', 'stop', 'seafile'])
+                print('Stopping seafile')
+                # subprocess.call(['systemctl', 'stop', 'seafile'])
+                subprocess.call(SEAFILE_STOP.strip().split())
 
                 # just wait some time to let services go down
                 time.sleep(10)
@@ -1086,7 +1097,7 @@ if len(args) > 0:
                     queue_garbage.put(library.id)
 
                 queue_garbage.join()
-                subprocess.call(['systemctl', 'start', 'seafile'])
+                subprocess.call(SEAFILE_STOP.strip().split())
 
             else:
                 error_exit(USAGE)
