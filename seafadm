@@ -225,7 +225,7 @@ class User:
         if len(self.libs) > 0:
             category = 'Libs:'
             for l in self.libs:
-                print('%s\t%s' % (category, ' | '.join((l.ID, l.name))))
+                print('%s\t%s' % (category, ' | '.join((l.id, l.name))))
                 category = ''
         if len(self.groups) > 0:
             category = 'Groups:'
