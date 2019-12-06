@@ -207,7 +207,7 @@ class User:
     """
     store information about a user
     """
-    mail = creation = quota = used_space = libs = groups = links = id = shases = None
+    mail = creation = quota = used_space = libs = groups = links = id = shares = None
 
     def __init__(self, **kwds):
         # fill properties with given values
@@ -219,7 +219,7 @@ class User:
         pretty prints user details
         """
         print('User:\t%s' % self.mail)
-        print('ID:\t\t%s' % self.id)
+        print('ID:\t%s' % self.id)
         print('Quota:\t%s' % ('%s/%s MB' % (self.used_space, self.quota)))
         print('Date:\t%s' % self.creation)
         if len(self.libs) > 0:
