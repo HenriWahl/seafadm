@@ -721,9 +721,9 @@ if not CONFIG_FILE == '':
         if config.has_option('seafadm', 'admin') and SEAFILE_ADMIN == '':
             SEAFILE_ADMIN = config.get('seafadm', 'admin')
         if config.has_option('seafadm', 'start') and SEAFILE_START == '':
-            SEAFILE_ADMIN = config.get('seafadm', 'start')
+            SEAFILE_START = config.get('seafadm', 'start')
         if config.has_option('seafadm', 'stop') and SEAFILE_STOP == '':
-            SEAFILE_ADMIN = config.get('seafadm', 'stop')
+            SEAFILE_STOP = config.get('seafadm', 'stop')
     else:
         error_exit('Section [seafadm] is missing in config file %s.' % CONFIG_FILE)
 
@@ -1096,8 +1096,11 @@ if len(args) > 0:
                 for library in libraries.values():
                     queue_garbage.put(library.id)
 
+                # wait until all workers did their work
                 queue_garbage.join()
-                subprocess.call(SEAFILE_STOP.strip().split())
+                
+                # restart Seafile
+                subprocess.call(SEAFILE_START.strip().split())
 
             else:
                 error_exit(USAGE)
