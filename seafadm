@@ -590,13 +590,13 @@ def get_users():
         except:
             used_space = d[3].text.strip()
             quota = 'None'
-        # used_space = used_space.strip()
-        # used_space, unit = used_space.split(' ')
+        # once again changed scraped web interface needs new access to mail address
+        mail = d[1].a.attrs['href'].split('/useradmin/info/')[1].rstrip('/')
+        creation = d[4].contents[0].strip().split('/')[0].strip()
         used_space, unit = used_space.strip().split(' ')
         # calculate space in megabytes
         used_space = format(float(used_space) * 1024 ** SIZE_UNITS.index(unit.lower()) / 1024 ** 2, '.1f')
-        creation = d[4].contents[0].strip().split('/')[0].strip()
-        user = User(mail=str(d[1].a.text.strip()), creation=creation, used_space=used_space, quota=quota)
+        user = User(mail=mail, creation=creation, used_space=used_space, quota=quota)
         if isinstance(d[5], bs4.element.Tag):
             user.id = d[5].a['data-url'].strip('/').split('/')[-1]
         users[user.mail] = user
