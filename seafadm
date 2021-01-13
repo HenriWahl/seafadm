@@ -179,8 +179,8 @@ urllib3.disable_warnings()
 
 # default config parameters
 CONFIG_FILE = SEAFILE_URL = SEAFILE_USERNAME = SEAFILE_PASSWORD = SEAFILE_ADMIN = SEAFILE_START = SEAFILE_STOP = ''
-# items to be shown per page to avoid pagination - 100000 should be enough
-PER_PAGE = 100000
+# items to be shown per page to avoid pagination - 999999 should be enough
+PER_PAGE = 999999
 # user API JSON return dictionaries are named differently, needed to read them
 USER_API_KEYS = {'users': 'data', 'ldap-users': 'ldap_user_list'}
 # no forcing as default
@@ -575,7 +575,7 @@ def get_users():
     users = dict()
     # returned lsit of users comes in different dictionaries in JSON
     for user_db in USER_API_KEYS:
-        result = json.loads(get_ajax(f'/api/v2.1/admin/{user_db}'))
+        result = json.loads(get_ajax(f'/api/v2.1/admin/{user_db}?per_page={PER_PAGE}'))
         if result.get(USER_API_KEYS[user_db]):
             for item in result[USER_API_KEYS[user_db]]:
                 # LDAP users do not have name property - just use mail address instead
@@ -594,7 +594,7 @@ def get_libaries():
     retrieve information about all libraries
     """
     libraries = dict()
-    result = json.loads(get_ajax('/api/v2.1/admin/libraries?per_page=999999'))
+    result = json.loads(get_ajax(f'/api/v2.1/admin/libraries?per_page={PER_PAGE}'))
     for lib in result['repos']:
         library = Library(name=lib['name'],
                           id=lib['id'],
