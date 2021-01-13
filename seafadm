@@ -531,7 +531,7 @@ def get_data(data_url, mode='simple', section=''):
     rows = list()
     table = None
     # sub-url as data-url gets anti-pagination-page-request added
-    soup = get_soup(SEAFILE_URL + data_url + '?per_page=%s' % PER_PAGE)
+    soup = get_soup(f'{SEAFILE_URL}{data_url}?per_page={PER_PAGE}')
     # sections are headed by h3 headers or li list items and thus identifyable
     h3s = soup.find_all('h3')
     for h3 in h3s:
