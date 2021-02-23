@@ -575,19 +575,26 @@ def get_users():
     users = dict()
     # returned lsit of users comes in different dictionaries in JSON
     for user_db in USER_API_KEYS:
-        result = json.loads(get_ajax(f'/api/v2.1/admin/{user_db}?per_page={PER_PAGE}'))
-        if result.get(USER_API_KEYS[user_db]):
-            for item in result[USER_API_KEYS[user_db]]:
-                # LDAP users do not have name property - just use mail address instead
-                user = User(name=item.get('name', item['email']),
-                            id=item['email'],
-                            mail=item['email'],
-                            creation=item['create_time'],
-                            used_space=int(item['quota_usage']/1000000),
-                            quota=int(item['quota_total']/1000000)
-                            )
-                users[user.id] = user
+        url = f'/api/v2.1/admin/{user_db}?per_page={PER_PAGE}'
+        ajax = get_ajax(url)
+        try:
+            result = json.loads(get_ajax(f'/api/v2.1/admin/{user_db}?per_page={PER_PAGE}'))
+            if result.get(USER_API_KEYS[user_db]):
+                for item in result[USER_API_KEYS[user_db]]:
+                    # LDAP users do not have name property - just use mail address instead
+                    user = User(name=item.get('name', item['email']),
+                                id=item['email'],
+                                mail=item['email'],
+                                creation=item['create_time'],
+                                used_space=int(item['quota_usage']/1000000),
+                                quota=int(item['quota_total']/1000000)
+                                )
+                    users[user.id] = user
+        except json.JSONDecodeError:
+            # no valid JSON given, for example if there are no LDAP users
+            pass
     return users
+
 
 def get_libaries():
     """
