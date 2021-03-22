@@ -333,7 +333,7 @@ class Library:
     """
     a single library
     """
-    name = id = owner = None
+    name = id = owner = size = size_formatted = None
 
     def __init__(self, **kwds):
         # fill properties with given values
@@ -605,7 +605,9 @@ def get_libaries():
     for lib in result['repos']:
         library = Library(name=lib['name'],
                           id=lib['id'],
-                          owner=lib['owner'])
+                          owner=lib['owner'],
+                          size=lib['size'],
+                          size_formatted=lib['size_formatted'])
         libraries[library.id] = library
     return libraries
 
@@ -774,11 +776,11 @@ if len(args) > 0:
             if objects == 'users':
                 users = get_users()
                 for u in sorted(list(users.values()), key=lambda x: x.mail):
-                    print('|'.join((u.mail, str(u.id), u.creation, '%s/%s MB' % (u.used_space, u.quota))))
+                    print('|'.join((u.mail, str(u.id), u.creation, f'{u.used_space}/{u.quota} MB')))
             elif objects in ['repos', 'libs', 'libraries']:
                 libs = get_libaries()
                 for l in sorted(list(libs.values()), key=lambda x: (x.owner, x.name)):
-                    print('|'.join((l.id, l.owner, l.name)))
+                    print('|'.join((l.id, str(l.size), l.size_formatted, l.owner, l.name)))
             elif objects == 'links':
                 links = get_links()
                 for l in sorted(list(links.values()), key=lambda x: (x.owner, x.name)):
