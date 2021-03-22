@@ -218,35 +218,35 @@ class User:
         """
         pretty prints user details
         """
-        print('User:\t%s' % self.mail)
-        print('ID:\t%s' % self.id)
-        print('Quota:\t%s' % ('%s/%s MB' % (self.used_space, self.quota)))
-        print('Date:\t%s' % self.creation)
+        print(f'User:\t{self.mail}')
+        print(f'ID:\t{self.id}')
+        print(f'Quota:\t{self.used_space}/{self.quota} MB')
+        print(f'Date:\t{self.creation}')
         if len(self.libs) > 0:
             category = 'Libs:'
             for l in self.libs:
-                print('%s\t%s' % (category, ' | '.join((l.id, l.name))))
+                print(f"{category}\t{'|'.join((l.id, str(l.size), l.size_formatted, l.owner, l.name))}")
                 category = ''
         if len(self.groups) > 0:
             category = 'Groups:'
             for g in self.groups:
                 if g.owner == self.mail:
-                    print('%s\t%s %s' % (category, g.name, '(Owner)'))
+                    print(f'{category}\t{g.name} (Owner)')
                 else:
-                    print('%s\t%s' % (category, g.name))
+                    print(f'{category}\t{g.name}')
                 category = ''
         if len(self.links) > 0:
             category = 'Links:'
             for l in self.links:
-                print('%s\t%s' % (category, ' | '.join((l.URL, l.Creation, l.name))))
+                print(f"{category}\t{'|'.join((l.URL, l.Creation, l.name))}")
                 category = ''
         if len(self.shares) > 0:
             category = 'Shares:'
             for s in self.shares:
                 if s.type == 'user':
-                    print('%s\t%s by user %s' % (category, s.name, s.owner))
+                    print(f'{category}\t{s.name} by user {s.owner}')
                 else:
-                    print('%s\t%s by group %s' % (category, s.name, s.group))
+                    print(f'{category}\t{s.name} by group {s.group}')
                 category = ''
 
     def print_report(self):
@@ -608,6 +608,11 @@ def get_libaries():
                           owner=lib['owner'],
                           size=lib['size'],
                           size_formatted=lib['size_formatted'])
+        # debugging code to find out libraries with keep_days == -1
+        # deactivated because taking very much time
+        #result_history = json.loads(get_ajax(f'/api/v2.1/admin/libraries/{library.id}/history-limit/'))
+        #if result_history['keep_days'] != 30:
+        #    print(library.id, library.owner, library.name, result_history)
         libraries[library.id] = library
     return libraries
 
