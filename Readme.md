@@ -4,6 +4,8 @@ seafadm - Seafile CLI Administration
 ABOUT:
 ------
 
+This library is forked from https://https://github.com/HenriWahl/seafadm
+
 Seafadm allows to do some administration tasks for Seafile (https://github.com/haiwen/seafile) from command line. It collects informations and executes commands by internally calling the web interface of Seafile, Seahub. The used BeautifulSoup module allows the command line tool to be seen as a browser from Seahub's perspective.
 Using seafadm one can collect informations about users, groups, links and libraries. These objects also can be deleted. Quotas can be set for users and domains. Searches can be done in users, libraries and groups. Reports can be generated to be sent to users by mail.
 
@@ -38,7 +40,8 @@ Valid options are:
 Valid commands are:
 
     show              show informations about users, libraries, groups and links
-    add               add users
+    add               add users, libraries and files
+    update            update user password
     delete            delete users, libraries, groups and links
     quota             set quota for single users and whole domains
     search            search for users, groups and links
@@ -59,6 +62,12 @@ Arguments for show command:
 Arguments for add command:
 
     user <email> <password>     add user <email> with password <password>
+    library <name> <email>      add library <name> for owner with <email>
+    files <filepath> <repo-id>  add file from <filepath> to <repo-id>
+
+Arguments for update command:
+
+    password <email> <new_password>     update <email> password with <new_password>
 
 Arguments for delete command:
 
@@ -120,6 +129,22 @@ Showing users as list:
 Showing details about one single user:
 
     seafadm -c ./seafadm.conf show user joe@example.com
+
+Adding an user:
+
+    seafadm -c ./seafadm.conf add user joe@example.com bar1234
+
+Adding a library:
+
+    seafdm -c  ./seafadm.conf add library 'Joe Library' joe@example.com
+
+Adding a file:
+
+    seafdm -c  ./seafadm.com add file './joe photo.jpg' 1c17cddc-2864-407c-8fcf-6a325964d00b 
+
+Update user password:
+
+    seafdm -c  ./seafadm.conf update password joe@example.com foo1234
 
 Deleting an user:
 

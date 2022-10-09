@@ -22,6 +22,7 @@ import bs4
 import configparser
 import getopt
 import json
+import io
 import os.path
 import queue
 import psutil
@@ -48,7 +49,8 @@ Valid options are:
 Valid commands are:
 
     show              show informations about users, libraries, groups and links
-    add               add users
+    add               add users, libraries and files
+    update            update user password
     delete            delete users, libraries, groups and links
     quota             set quota for single users and whole domains
     search            search for users, groups and links
@@ -69,7 +71,12 @@ Arguments for show command:
 Arguments for add command:
 
     user <email> <password>     add user <email> with password <password>
+    library <name> <email>      add library <name> for owner with <email>
+    files <filepath> <repo-id>  add file from <filepath> to <repo-id>
 
+Arguments for update command:
+
+    password <email> <new_password>     update <email> password with <new_password>
 
 Arguments for delete command:
 
@@ -123,6 +130,18 @@ Showing details about one single user:
 Adding an user:
 
     seafadm -c ./seafadm.conf add user joe@example.com bar1234
+
+Adding a library:
+
+    seafdm -c  ./seafadm.conf add library 'Joe Library' joe@example.com
+
+Adding a file:
+
+    seafdm -c  ./seafadm.com add file './joe photo.jpg' 1c17cddc-2864-407c-8fcf-6a325964d00b 
+
+Update user password:
+
+    seafdm -c  ./seafadm.conf update password joe@example.com foo1234
 
 Deleting an user:
 
@@ -477,21 +496,23 @@ class WorkerGarbage(threading.Thread):
             print('Remaining libraries:', number_of_libraries)
 
 
-def get_url(url, data=None):
+def get_url(url, data=None, is_put=False):
     """
     shortcut for URL request
     """
-    if data is not None:
+    if data is not None and not is_put:
         data['csrfmiddlewaretoken'] = csrf_token
         data['submit'] = 'Submit'
         response = session.post(url, data)
+    elif is_put:
+        response = session.put(url,data)
     else:
         response = session.get(url)
 
     return response.text
 
 
-def get_ajax(url, data=None, referer=None):
+def get_ajax(url, data=None, referer=None, files=None):
     """
     shortcut for Ajax request
     """
@@ -503,10 +524,12 @@ def get_ajax(url, data=None, referer=None):
         headers.update({'Referer': referer})
     if not url.startswith('http'):
         url = '{0}{1}'.format(SEAFILE_URL, url)
-    if data is None:
+    if data is None and files is None:
         response = session.get(url, headers=headers)
-    else:
+    elif data is not None:
         response = session.post(url, data=data, headers=headers)
+    else:
+        response = session.post(url, files=files)
 
     return response.text
 
@@ -596,7 +619,7 @@ def get_users():
     return users
 
 
-def get_libaries():
+def get_libraries():
     """
     retrieve information about all libraries
     """
@@ -783,7 +806,7 @@ if len(args) > 0:
                 for u in sorted(list(users.values()), key=lambda x: x.mail):
                     print('|'.join((u.mail, str(u.id), u.creation, f'{u.used_space}/{u.quota} MB')))
             elif objects in ['repos', 'libs', 'libraries']:
-                libs = get_libaries()
+                libs = get_libraries()
                 for l in sorted(list(libs.values()), key=lambda x: (x.owner, x.name)):
                     print('|'.join((l.id, str(l.size), l.size_formatted, l.owner, l.name)))
             elif objects == 'links':
@@ -800,7 +823,7 @@ if len(args) > 0:
                     users = get_users()
                     if user not in users.keys():
                         error_exit('User %s does not exist.' % user)
-                    libs = get_libaries()
+                    libs = get_libraries()
                     links = get_links()
                     groups = get_groups()
                     users[user].collect_info(libs=libs, links=links, groups=groups)
@@ -818,7 +841,7 @@ if len(args) > 0:
                     error_exit('Group needed to display group info.')
             elif objects == 'all':
                 users = get_users()
-                libs = get_libaries()
+                libs = get_libraries()
                 links = get_links()
                 groups = get_groups()
                 for u in sorted(list(users.values()), key=lambda x: x.mail):
@@ -847,7 +870,7 @@ if len(args) > 0:
                         error_exit('User %s does not exist.' % user)
                 elif objects in ['library', 'lib', 'repo']:
                     lib = args[2]
-                    libs = get_libaries()
+                    libs = get_libraries()
                     if lib in libs:
                         if confirm('Delete library %s' % lib):
                             get_url('%s/sys/seafadmin/delete/%s/' % (SEAFILE_URL, lib), {})
@@ -900,6 +923,47 @@ if len(args) > 0:
                     except:
                         error = bs4.BeautifulSoup(result['error'], features='html.parser').text
                     print(error)
+            elif args[1].lower() in ['library', 'lib', 'repo']:
+                name = args[2]
+                owner = args[3]
+                result = get_url('%s/api/v2.1/admin/libraries/' % SEAFILE_URL, {'name':name, 'owner': owner})
+
+                result = json.loads(result)
+                if not 'error_msg' in result:
+                    print('Created library %s for %s with id: %s' % (name, owner, result['id']))
+                else:
+                    print(result['error_msg'])
+            elif args[1].lower() in ['file']:
+                fileobject = open(args[2], 'rb')
+                if isinstance(fileobject, str):
+                    fileobject = io.BytesIO(fileobj.encode())
+                filename = os.path.basename(args[2])
+                repo_id = args[3]
+                url = get_url('%s/api2/repos/%s/upload-link/' % (SEAFILE_URL, repo_id))
+                url = url.replace('"', '')
+
+                result = get_ajax(url, 
+                                  files={'file':(filename, fileobject), 
+                                         'parent_dir':'/', 
+                                         'replace':1})
+                print(result)
+        else:
+            error_exit(USAGE)
+
+    elif args[0].lower() == 'update':
+        # update user password
+        if len(args) >= 4:
+            if args[1].lower() in ['password']:
+                email = args[2]
+                new_password = args[3]
+                url = '%s/api/v2.1/admin/users/%s/' % (SEAFILE_URL, email)
+                data = {'email':email, 'password': new_password}
+
+                result = get_url(url, data=data, is_put=True)
+                print(result)
+
+            else:
+                error_exit(USAGE)
         else:
             error_exit(USAGE)
 
@@ -980,7 +1044,7 @@ if len(args) > 0:
                     users = get_users()
                     links = get_links()
                     groups = get_groups()
-                    libs = get_libaries()
+                    libs = get_libraries()
                     for user in users.values():
                         if search in user.mail.lower():
                             user.collect_info(libs=libs, links=links, groups=groups)
@@ -1060,7 +1124,7 @@ if len(args) > 0:
                     except:
                         error_exit(USAGE)
 
-                libraries = get_libaries()
+                libraries = get_libraries()
                 number_of_libraries = len(libraries)
 
                 print('Stopping seafile')
@@ -1114,7 +1178,7 @@ if len(args) > 0:
                 users = get_users()
                 if user not in users:
                     error_exit('User %s does not exist.' % user)
-                libs = get_libaries()
+                libs = get_libraries()
                 links = get_links()
                 groups = get_groups()
                 users[user].collect_info(libs=libs, links=links, groups=groups)
