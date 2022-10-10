@@ -4,8 +4,6 @@ seafadm - Seafile CLI Administration
 ABOUT:
 ------
 
-This library is forked from https://https://github.com/HenriWahl/seafadm
-
 Seafadm allows to do some administration tasks for Seafile (https://github.com/haiwen/seafile) from command line. It collects informations and executes commands by internally calling the web interface of Seafile, Seahub. The used BeautifulSoup module allows the command line tool to be seen as a browser from Seahub's perspective.
 Using seafadm one can collect informations about users, groups, links and libraries. These objects also can be deleted. Quotas can be set for users and domains. Searches can be done in users, libraries and groups. Reports can be generated to be sent to users by mail.
 
